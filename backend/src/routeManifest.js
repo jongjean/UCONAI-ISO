@@ -75,6 +75,7 @@
   { method: "POST", path: "/api/v1/references/governance-matrix", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/references/source-use-decision-report", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/references/supporting-materials-readiness", status: "active", gate: "none" },
+  { method: "POST", path: "/api/v1/references/local-first-evidence-strategy", status: "active", gate: "none" },
   { method: "GET", path: "/api/v1/terms", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/terms/validate", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/terms/clause-preview", status: "active", gate: "none" },

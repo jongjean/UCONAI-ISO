@@ -44,6 +44,56 @@ export function describeBibliographyPolicy() {
   };
 }
 
+export function buildLocalFirstEvidenceStrategy(input = {}) {
+  const projectKey = input.projectKey || "iso-project";
+  const optionalConnectors = Array.isArray(input.optionalConnectors)
+    ? input.optionalConnectors
+    : ["zotero", "obsidian"];
+
+  return {
+    projectKey,
+    mode: "local-first-evidence",
+    primaryStore: {
+      id: "hp-evidence-store",
+      required: true,
+      role: "immutable originals, generated documents, version history, checksums and audit ledgers",
+      root: `/uconai/data/iso/evidence/${projectKey}`,
+      writePolicy: "append-only-versioned",
+      lossPolicy: "hp-copy-is-authoritative-for-preservation"
+    },
+    authoringStore: {
+      id: "markdown-source",
+      required: true,
+      role: "ISO-MD drafting source for AI and human review before DOCX export",
+      sourceRule: "Markdown is the drafting source of truth; DOCX is rendered output."
+    },
+    optionalConnectors: optionalConnectors.map((connector) => connectorPolicy(connector)),
+    uploadFlow: [
+      "wizard-upload",
+      "hp-immutable-save",
+      "sha256-checksum",
+      "append-evidence-ledger",
+      "markdown-note-or-draft-update",
+      "ai-index-refresh",
+      "optional-connector-sync"
+    ],
+    generatedDocumentFlow: [
+      "markdown-source-update",
+      "hp-new-version-save",
+      "docx-export-job",
+      "export-ledger-append",
+      "optional-reference-mirror"
+    ],
+    zoteroDecision: {
+      currentRelease: "deferred",
+      reason: "Zotero storage cost and account policy should not block local engine completion.",
+      nextUpdate: "Decide whether to enable Zotero as an optional reference connector.",
+      fallback: "HP metadata, citation keys and evidence ledger remain sufficient for local operation."
+    },
+    completionBoundary: "Local-first HP evidence preservation and Markdown/DOCX workflow must work without Zotero."
+  };
+}
+
 export function buildReferenceReadinessReport(input = {}) {
   const stage = input.stage || "PWI";
   const references = Array.isArray(input.references) ? input.references : [];
@@ -239,6 +289,34 @@ function classifyReferenceUse(reference = {}) {
   if (reference.bibliographyCandidate === true) return "bibliography-candidate";
   if (reference.aiUseMode === "EXCLUDE") return "registered-excluded-source";
   return "background-reference";
+}
+
+function connectorPolicy(connector) {
+  if (connector === "zotero") {
+    return {
+      id: "zotero",
+      required: false,
+      status: "future-optional",
+      role: "reference manager, citation library and external mirror",
+      integrationGate: "enable only after group library, API key, storage cost and sync policy are decided"
+    };
+  }
+  if (connector === "obsidian") {
+    return {
+      id: "obsidian",
+      required: false,
+      status: "local-compatible",
+      role: "Markdown vault workbench for literature notes, N-document notes, draft clauses and review notes",
+      integrationGate: "can be backed by HP Markdown folders before any external sync is enabled"
+    };
+  }
+  return {
+    id: String(connector || "unknown"),
+    required: false,
+    status: "future-optional",
+    role: "external connector",
+    integrationGate: "requires explicit connector policy before use"
+  };
 }
 
 function referenceActionFor({ stage, validation, linked, intendedUse }) {

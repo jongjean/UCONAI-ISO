@@ -4,6 +4,7 @@ import { ok } from "../http/respond.js";
 import {
   buildBibliographyLinkPreview,
   buildEndnoteBindingPlan,
+  buildLocalFirstEvidenceStrategy,
   buildReferenceGovernanceMatrix,
   buildReferenceReadinessReport,
   buildSourceUseDecisionReport,
@@ -16,6 +17,10 @@ export const referencesRouter = Router();
 
 referencesRouter.get("/policy", (_req, res) => {
   ok(res, describeBibliographyPolicy());
+});
+
+referencesRouter.post("/local-first-evidence-strategy", (req, res) => {
+  ok(res, buildLocalFirstEvidenceStrategy(req.body || {}));
 });
 
 referencesRouter.post("/validate", (req, res) => {

@@ -15,6 +15,7 @@ function fail(message) {
 const referencePolicy = read("backend/src/services/referencePolicy.js");
 for (const token of [
   "buildReferenceGovernanceMatrix",
+  "buildLocalFirstEvidenceStrategy",
   "buildEndnoteBindingPlan",
   "buildSourceUseDecisionReport",
   "classifyReferenceUse",
@@ -25,7 +26,9 @@ for (const token of [
   "CLAUSE_2_LINK_REQUIRED",
   "BIBLIOGRAPHY_LINK_RECOMMENDED",
   "ENDNOTE_BINDING_INCOMPLETE",
-  "binding-plan-only-until-db-enabled"
+  "binding-plan-only-until-db-enabled",
+  "local-first-evidence",
+  "future-optional"
 ]) {
   if (!referencePolicy.includes(token)) {
     fail(`Missing reference phase-5 token: ${token}`);
@@ -86,6 +89,7 @@ const routes = [
   ["backend/src/routes/references.js", 'post("/governance-matrix"'],
   ["backend/src/routes/references.js", 'post("/endnote-binding-plan"'],
   ["backend/src/routes/references.js", 'post("/source-use-decision-report"'],
+  ["backend/src/routes/references.js", 'post("/local-first-evidence-strategy"'],
   ["backend/src/routes/references.js", 'post("/supporting-materials-readiness"'],
   ["backend/src/routes/terms.js", 'post("/consistency-report"'],
   ["backend/src/routes/figures.js", 'post("/diagram-plan"'],
@@ -104,6 +108,7 @@ for (const route of [
   "/api/v1/references/governance-matrix",
   "/api/v1/references/endnote-binding-plan",
   "/api/v1/references/source-use-decision-report",
+  "/api/v1/references/local-first-evidence-strategy",
   "/api/v1/references/supporting-materials-readiness",
   "/api/v1/terms/consistency-report",
   "/api/v1/figures/diagram-plan",
