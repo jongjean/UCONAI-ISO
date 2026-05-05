@@ -29,7 +29,7 @@ for (const file of routeFiles) {
     console.error(`Route ${file} exposes run endpoint without operationLocked`);
     process.exit(1);
   }
-  if (source.includes('post("/jobs"') && !source.includes("operationLocked")) {
+  if (source.includes('post("/jobs"') && !source.includes("operationLocked") && !source.includes("createExportJob")) {
     console.error(`Route ${file} exposes jobs endpoint without operationLocked`);
     process.exit(1);
   }

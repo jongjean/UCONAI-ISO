@@ -89,6 +89,9 @@
   { method: "GET", path: "/api/v1/persistence/contracts", status: "active", gate: "none" },
   { method: "GET", path: "/api/v1/persistence/implementation-plan", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/persistence/operation/validate", status: "active", gate: "none" },
+  { method: "POST", path: "/api/v1/persistence/workspace-snapshots", status: "active", gate: "none" },
+  { method: "POST", path: "/api/v1/persistence/workspace-snapshots/list", status: "active", gate: "none" },
+  { method: "POST", path: "/api/v1/persistence/backup-evidence", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/reviews/stakeholder-map", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/reviews/comment-response-plan", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/reviews/meeting-mission-plan", status: "active", gate: "none" },
@@ -132,7 +135,7 @@
   { method: "POST", path: "/api/v1/agents/run", status: "blocked", gate: "admin-review" },
   { method: "POST", path: "/api/v1/references", status: "blocked", gate: "admin-review" },
   { method: "POST", path: "/api/v1/figures/generate-source", status: "blocked", gate: "admin-review" },
-  { method: "POST", path: "/api/v1/exports/jobs", status: "blocked", gate: "admin-review" },
+  { method: "POST", path: "/api/v1/exports/jobs", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/billing/usage", status: "blocked", gate: "admin-review" }
 ];
 

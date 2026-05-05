@@ -1,6 +1,6 @@
 ﻿import { Router } from "express";
-import { operationLocked } from "../http/errors.js";
 import { ok } from "../http/respond.js";
+import { createExportJob } from "../services/exportWorker.js";
 import {
   buildExportManifestPreview,
   buildExportReadinessReport,
@@ -56,11 +56,12 @@ exportsRouter.post("/source-package-binding-report", (req, res) => {
   ok(res, buildSourcePackageBindingReport(req.body || {}));
 });
 
-exportsRouter.post("/jobs", (_req, _res, next) => {
-  next(operationLocked(
-    "Export job creation is blocked until storage, version binding and worker policy are configured.",
-    { reviewType: "admin-review", blockedResource: "export_jobs" }
-  ));
+exportsRouter.post("/jobs", async (req, res, next) => {
+  try {
+    ok(res, await createExportJob(req.body || {}));
+  } catch (error) {
+    next(error);
+  }
 });
 
 

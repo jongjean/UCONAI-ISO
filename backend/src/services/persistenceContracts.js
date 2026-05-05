@@ -1,14 +1,15 @@
 import { repositoryContractById, repositoryContracts, listRepositoryModels } from "../repositories/contracts.js";
 import { createDisabledRepository } from "../repositories/disabledRepository.js";
+export { buildStorageBackupEvidence, createWorkspaceSnapshot, listWorkspaceSnapshots } from "./storagePersistence.js";
 
 export function listPersistenceContracts() {
   return {
-    enabled: false,
+    enabled: true,
     database: {
       provider: "postgresql",
       plannedName: "uconai_iso",
       schemaSource: "/uconai/projects/iso/backend/prisma/schema.prisma",
-      executionState: "not-executed"
+      executionState: "deferred-storage-backed-json-active"
     },
     repositories: repositoryContracts.map((contract) => createDisabledRepository(contract).describe()),
     modelCoverage: listRepositoryModels(),
@@ -24,7 +25,12 @@ export function listPersistenceContracts() {
       "recordUsage",
       "appendAuditLog"
     ],
-    persistence: "disabled-until-db-enabled"
+    storagePersistence: {
+      enabled: true,
+      snapshotWrites: "storage-backed-json-snapshot",
+      backupEvidence: "storage-backed-backup-evidence"
+    },
+    persistence: "storage-backed-until-db-enabled"
   };
 }
 

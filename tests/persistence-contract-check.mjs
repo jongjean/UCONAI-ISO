@@ -50,6 +50,10 @@ for (const token of [
   "listPersistenceContracts",
   "validatePersistenceOperation",
   "buildRepositoryImplementationPlan",
+  "createWorkspaceSnapshot",
+  "listWorkspaceSnapshots",
+  "buildStorageBackupEvidence",
+  "storage-backed-json-snapshot",
   "executionAllowed: false",
   "PERSISTENT_WRITE_DISABLED",
   "No canonical document write without active edit lock"
@@ -63,7 +67,10 @@ const route = read("backend/src/routes/persistence.js");
 for (const token of [
   'get("/contracts"',
   'get("/implementation-plan"',
-  'post("/operation/validate"'
+  'post("/operation/validate"',
+  'post("/workspace-snapshots"',
+  'post("/workspace-snapshots/list"',
+  'post("/backup-evidence"'
 ]) {
   if (!route.includes(token)) {
     fail(`Missing persistence route token: ${token}`);
@@ -79,7 +86,10 @@ const manifest = read("backend/src/routeManifest.js");
 for (const endpoint of [
   "/api/v1/persistence/contracts",
   "/api/v1/persistence/implementation-plan",
-  "/api/v1/persistence/operation/validate"
+  "/api/v1/persistence/operation/validate",
+  "/api/v1/persistence/workspace-snapshots",
+  "/api/v1/persistence/workspace-snapshots/list",
+  "/api/v1/persistence/backup-evidence"
 ]) {
   if (!manifest.includes(endpoint)) {
     fail(`Missing persistence manifest endpoint: ${endpoint}`);
