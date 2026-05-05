@@ -28,6 +28,35 @@ export type AiCommanderResponse = {
   text: string;
 };
 
+export type NDocumentAnalysisResponse = {
+  id: string;
+  fileName: string;
+  uploadedAt: string;
+  eventType: "presentation" | "decision" | "meeting" | "plenary" | "circulation" | "vote" | "regulation" | "reference";
+  stage: string;
+  confidence: "low" | "medium" | "high";
+  summary: string;
+  contentPreview: string;
+  done: string[];
+  todo: string[];
+  matchedTerms: Array<{ stage: string; terms: string[] }>;
+  storageRef?: string;
+};
+
+export type StageAssessmentResponse = {
+  currentStage: string;
+  progress: number;
+  stageEvidence: Record<string, number>;
+  latestEvidence: null | {
+    fileName: string;
+    eventType: string;
+    stage: string;
+    summary: string;
+  };
+  nextActions: string[];
+  missingEvidence: string[];
+};
+
 function timeoutSignal(milliseconds: number) {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), milliseconds);
@@ -55,6 +84,33 @@ export async function runAiCommander(request: AiCommanderRequest): Promise<AiCom
     body: JSON.stringify(request)
   }, 45000);
   return payload.data as AiCommanderResponse;
+}
+
+export async function analyzeNDocument(request: {
+  fileName: string;
+  contentText: string;
+  fallbackStage: string;
+}): Promise<NDocumentAnalysisResponse> {
+  const baseUrl = (import.meta.env.VITE_ISO_API_BASE_URL || "/iso/api/v1").replace(/\/$/, "");
+  const payload = await fetchJson(`${baseUrl}/n-documents/analyze`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request)
+  }, 15000);
+  return payload.data as NDocumentAnalysisResponse;
+}
+
+export async function buildStageAssessment(request: {
+  currentStage: string;
+  nDocuments: object[];
+}): Promise<StageAssessmentResponse> {
+  const baseUrl = (import.meta.env.VITE_ISO_API_BASE_URL || "/iso/api/v1").replace(/\/$/, "");
+  const payload = await fetchJson(`${baseUrl}/n-documents/stage-assessment`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request)
+  }, 8000);
+  return payload.data as StageAssessmentResponse;
 }
 
 export async function probeIsoApi(): Promise<ApiProbeState> {

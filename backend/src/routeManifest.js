@@ -53,6 +53,8 @@
   { method: "POST", path: "/api/v1/documents/validate-element", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/documents/validate-outline", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/documents/numbering-preview", status: "active", gate: "none" },
+  { method: "POST", path: "/api/v1/n-documents/analyze", status: "active", gate: "none" },
+  { method: "POST", path: "/api/v1/n-documents/stage-assessment", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/roadmap/track-change-preview", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/roadmap/procedure-diary", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/roadmap/stage-readiness-matrix", status: "active", gate: "none" },

@@ -1,5 +1,6 @@
 import { config } from "../config.js";
 import { ApiError } from "../http/errors.js";
+import { buildStageAssessment } from "./nDocumentEngine.js";
 
 const hasKorean = (value = "") => [...String(value)].some((character) => {
   const code = character.charCodeAt(0);
@@ -12,19 +13,31 @@ const hasKorean = (value = "") => [...String(value)].some((character) => {
 
 function compactContext(context = {}) {
   const nDocuments = Array.isArray(context.nDocuments) ? context.nDocuments.slice(-5) : [];
+  const stageAssessment = buildStageAssessment({
+    currentStage: context.currentStage,
+    nDocuments
+  });
   return {
     currentStage: context.currentStage || "PWI",
     detectedStage: context.regulationAnalysis?.detectedStage || "unknown",
     regulationSummary: context.regulationAnalysis?.summary || "",
+    stageAssessment,
     projectTitle: context.standardSetup?.projectTitle || "",
     standardTitle: context.standardSetup?.standardTitle || "",
     committeeName: context.standardSetup?.committeeName || "",
+    aiModelName: context.standardSetup?.aiModelName || "",
+    developers: context.standardSetup?.developerNames || "",
+    developmentLead: context.standardSetup?.developmentLead || "",
+    developmentCommittee: context.standardSetup?.developmentCommittee || "",
+    realTimeStatusMemo: context.standardSetup?.realTimeStatusMemo || "",
+    advancedInfoMemo: context.standardSetup?.advancedInfoMemo || "",
     evidenceMemo: context.standardSetup?.evidenceMemo || "",
     nDocuments: nDocuments.map((documentRecord) => ({
       fileName: documentRecord.fileName,
       eventType: documentRecord.eventType,
       stage: documentRecord.stage,
-      summary: documentRecord.summary
+      summary: documentRecord.summary,
+      confidence: documentRecord.confidence
     }))
   };
 }
@@ -44,7 +57,11 @@ export async function runAiCommander({ prompt = "", messages = [], context = {} 
     : "Answer in English unless the user asks otherwise.";
   const systemPrompt = [
     "You are UCONAI ISO AI Commander, a supervisor agent for ISO/IEC standard development.",
+    "Act as the control tower for project setup, N-document evidence, stage position, schedule risk, reference readiness and document authoring.",
     "Give concrete product guidance tied to the current screen and project state.",
+    "Separate confirmed facts from suggested actions. Never claim a stage is final without source evidence in the context.",
+    "If uploaded N-documents exist, use their filenames, event types, stage markers and summaries before giving general ISO advice.",
+    "When evidence is missing, ask for the smallest useful next upload or field update.",
     "Do not repeat a generic template. Answer the user's actual question first.",
     "When mentioning source uploads, point to Start Wizard > N-document event registry > Upload N-documents.",
     languageInstruction

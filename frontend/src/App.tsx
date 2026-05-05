@@ -17,7 +17,7 @@
   Sparkles,
   Users
 } from "lucide-react";
-import { probeIsoApi, runAiCommander, type ApiProbeState } from "./api";
+import { analyzeNDocument, buildStageAssessment as requestStageAssessment, probeIsoApi, runAiCommander, type ApiProbeState } from "./api";
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import {
@@ -130,8 +130,12 @@ type NDocumentRecord = {
   uploadedAt: string;
   eventType: NDocumentEventType;
   stage: string;
+  confidence?: "low" | "medium" | "high";
   summary: string;
   contentPreview: string;
+  done?: string[];
+  todo?: string[];
+  storageRef?: string;
 };
 
 type WizardHistoryEntry = {
@@ -465,6 +469,7 @@ export function App() {
   const [superAgentInput, setSuperAgentInput] = useState("");
   const [nDocuments, setNDocuments] = useState<NDocumentRecord[]>(savedWorkspace.nDocuments || []);
   const [openNDocumentId, setOpenNDocumentId] = useState<string | null>(savedWorkspace.nDocuments?.[0]?.id || null);
+  const [stageEngineMessage, setStageEngineMessage] = useState("Stage engine is waiting for source evidence.");
   const [wizardHistory, setWizardHistory] = useState<WizardHistoryEntry[]>(savedWorkspace.wizardHistory || []);
   const [isWizardPageOpen, setIsWizardPageOpen] = useState(savedWorkspace.isWizardPageOpen || false);
   const [activeModuleKey, setActiveModuleKey] = useState<keyof OperationalModules>("roadmapEvents");
@@ -1038,7 +1043,7 @@ export function App() {
   function classifyNDocument(text: string): { eventType: NDocumentEventType; stage: string } {
     const lower = text.toLowerCase();
     const eventRules: Array<{ eventType: NDocumentEventType; terms: string[] }> = [
-      { eventType: "vote", terms: ["vote", "ballot", "accepted result", "opposing vote"] },
+      { eventType: "vote", terms: ["vote", "ballot", "accepted result", "voting result"] },
       { eventType: "circulation", terms: ["circulation", "circulated", "comment period", "consultation"] },
       { eventType: "plenary", terms: ["plenary", "general assembly", "총회"] },
       { eventType: "meeting", terms: ["meeting", "minutes", "agenda", "회의"] },
@@ -1068,12 +1073,35 @@ export function App() {
       const combined = `${file.name}\n${rawText}`;
       const classification = classifyNDocument(combined);
       const preview = rawText.replace(/\s+/g, " ").trim().slice(0, 1800) || "Original preview is unavailable for this file type in browser preview mode.";
+      try {
+        const engineAnalysis = await analyzeNDocument({
+          fileName: file.name,
+          contentText: rawText,
+          fallbackStage: currentStage
+        });
+        return {
+          id: engineAnalysis.id,
+          fileName: engineAnalysis.fileName,
+          uploadedAt: new Date(engineAnalysis.uploadedAt).toLocaleString(),
+          eventType: engineAnalysis.eventType,
+          stage: engineAnalysis.stage,
+          confidence: engineAnalysis.confidence,
+          summary: engineAnalysis.summary,
+          contentPreview: engineAnalysis.contentPreview,
+          done: engineAnalysis.done,
+          todo: engineAnalysis.todo,
+          storageRef: engineAnalysis.storageRef
+        } satisfies NDocumentRecord;
+      } catch {
+        setStageEngineMessage("N-document engine API is not connected on this path, so browser analysis was used.");
+      }
       return {
         id: `n-doc-${Date.now()}-${index}`,
         fileName: file.name,
         uploadedAt: new Date().toLocaleString(),
         eventType: classification.eventType,
         stage: classification.stage,
+        confidence: "low",
         summary: `${nDocumentEventLabels[classification.eventType]} evidence mapped to ${classification.stage}.`,
         contentPreview: preview
       } satisfies NDocumentRecord;
@@ -1092,11 +1120,28 @@ export function App() {
     if (records[0]) {
       updateStandardSetup("currentStage", records[0].stage, "suggested");
       updateProjectDraft("stage", records[0].stage === "Publish" ? "FDIS" : records[0].stage);
+      setRegulationAnalysis({
+        fileName: records[0].fileName,
+        detectedStage: records[0].stage,
+        confidence: records[0].confidence || "low",
+        done: records[0].done || [`Registered ${records[0].eventType} source evidence for ${records[0].stage}.`],
+        todo: records[0].todo || [`Confirm next ${records[0].stage} committee action.`],
+        summary: records[0].summary
+      });
+    }
+    try {
+      const assessment = await requestStageAssessment({
+        currentStage: records[0]?.stage || currentStage,
+        nDocuments: [...records, ...nDocuments]
+      });
+      setStageEngineMessage(`Stage engine v0.1: ${assessment.currentStage} / ${assessment.progress}% with ${assessment.nextActions[0]}`);
+    } catch {
+      setStageEngineMessage("Stage engine API is not connected on this path; local stage markers remain active.");
     }
     const agentMessage: SuperAgentMessage = {
       id: `n-doc-agent-${Date.now()}`,
       speaker: "super-agent",
-      text: `${records.length} N-document event file(s) registered. I marked event evidence on the progress line and updated current stage from the newest source.`
+      text: `${records.length} N-document event file(s) registered. I marked event evidence on the progress line, updated current stage from the newest source, and prepared the AI Commander context.`
     };
     setSuperAgentMessages((current) => [...current, agentMessage].slice(-12));
     setWorkspaceMessage(`${records.length} N-document event file(s) uploaded and classified.`);
@@ -1451,6 +1496,9 @@ export function App() {
           <p className="dashboard-readonly-note">
             Dashboard is read-only. To edit project fields, upload N-documents, or run AI Commander decisions, open the Start Wizard settings page.
           </p>
+          <p className="dashboard-readonly-note engine-note">
+            {stageEngineMessage}
+          </p>
           <div className="dashboard-summary-grid">
             <article className="dashboard-summary-card super-agent-entry">
               <span>Settings and AI Commander</span>
@@ -1638,7 +1686,7 @@ export function App() {
                     key={documentRecord.id}
                     onClick={() => setOpenNDocumentId(documentRecord.id)}
                   >
-                    <span>{nDocumentEventLabels[documentRecord.eventType]} / {documentRecord.stage}</span>
+                    <span>{nDocumentEventLabels[documentRecord.eventType]} / {documentRecord.stage} / {documentRecord.confidence || "low"}</span>
                     <strong>{documentRecord.fileName}</strong>
                     <em>{documentRecord.uploadedAt}</em>
                   </button>
@@ -1648,6 +1696,7 @@ export function App() {
                 <span>Original document preview</span>
                 <strong>{openNDocument?.fileName || "No N-document selected"}</strong>
                 <p>{openNDocument?.summary || "Upload an N-document to reopen its source content here."}</p>
+                {openNDocument?.storageRef && <p>Server evidence ref: {openNDocument.storageRef}</p>}
                 <pre>{openNDocument?.contentPreview || "Waiting for uploaded source."}</pre>
               </article>
             </div>

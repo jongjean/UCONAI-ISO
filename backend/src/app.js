@@ -15,6 +15,7 @@ import { configStatusRouter } from "./routes/configStatus.js";
 import { documentsRouter } from "./routes/documents.js";
 import { exportsRouter } from "./routes/exports.js";
 import { figuresRouter } from "./routes/figures.js";
+import { nDocumentsRouter } from "./routes/nDocuments.js";
 import { persistenceRouter } from "./routes/persistence.js";
 import { policyRouter } from "./routes/policy.js";
 import { projectsRouter } from "./routes/projects.js";
@@ -43,6 +44,7 @@ export function createApp() {
   app.use("/api/v1/auth", authRouter);
   app.use("/api/v1/config-status", configStatusRouter);
   app.use("/api/v1/documents", documentsRouter);
+  app.use("/api/v1/n-documents", nDocumentsRouter);
   app.use("/api/v1/exports", exportsRouter);
   app.use("/api/v1/figures", figuresRouter);
   app.use("/api/v1/persistence", persistenceRouter);
