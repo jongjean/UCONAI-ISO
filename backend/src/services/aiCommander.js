@@ -1,6 +1,6 @@
 import { config } from "../config.js";
 import { ApiError } from "../http/errors.js";
-import { buildStageAssessment } from "./nDocumentEngine.js";
+import { buildProjectControlSnapshot, buildStageAssessment } from "./nDocumentEngine.js";
 
 const hasKorean = (value = "") => [...String(value)].some((character) => {
   const code = character.charCodeAt(0);
@@ -17,11 +17,16 @@ function compactContext(context = {}) {
     currentStage: context.currentStage,
     nDocuments
   });
+  const projectControl = buildProjectControlSnapshot({
+    currentStage: context.currentStage,
+    nDocuments
+  });
   return {
     currentStage: context.currentStage || "PWI",
     detectedStage: context.regulationAnalysis?.detectedStage || "unknown",
     regulationSummary: context.regulationAnalysis?.summary || "",
     stageAssessment,
+    projectControl,
     projectTitle: context.standardSetup?.projectTitle || "",
     standardTitle: context.standardSetup?.standardTitle || "",
     committeeName: context.standardSetup?.committeeName || "",

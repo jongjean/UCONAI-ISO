@@ -23,14 +23,23 @@ const frontendApp = read("frontend/src/App.tsx");
   'app.use("/api/v1/n-documents", nDocumentsRouter)',
   'path: "/api/v1/n-documents/analyze"',
   'path: "/api/v1/n-documents/stage-assessment"',
+  'path: "/api/v1/n-documents/knowledge-index"',
+  'path: "/api/v1/n-documents/rag-query"',
+  'path: "/api/v1/n-documents/project-control-snapshot"',
   "export function analyzeNDocument",
   "export function buildStageAssessment",
+  "export function buildKnowledgeIndex",
+  "export function queryKnowledgeIndex",
+  "export function buildProjectControlSnapshot",
   "stageAssessment",
+  "projectControl",
   "Never claim a stage is final without source evidence",
   "function termMatches",
   "escapeRegExp",
   "analyzeNDocument",
-  "requestStageAssessment"
+  "requestStageAssessment",
+  "buildProjectControlSnapshot",
+  "queryNDocumentKnowledge"
 ].forEach((token) => {
   const haystack = [
     app,

@@ -39,6 +39,18 @@ export type NDocumentAnalysisResponse = {
   contentPreview: string;
   done: string[];
   todo: string[];
+  risks: string[];
+  scheduleSignals: string[];
+  referenceSignals: string[];
+  dates: string[];
+  chunks: Array<{
+    id: string;
+    fileName: string;
+    text: string;
+    keywords: string[];
+    stageHints: string[];
+    eventHints: string[];
+  }>;
   matchedTerms: Array<{ stage: string; terms: string[] }>;
   storageRef?: string;
 };
@@ -55,6 +67,16 @@ export type StageAssessmentResponse = {
   };
   nextActions: string[];
   missingEvidence: string[];
+};
+
+export type ProjectControlSnapshotResponse = {
+  stageAssessment: StageAssessmentResponse;
+  actionItems: string[];
+  risks: string[];
+  scheduleSignals: string[];
+  referenceSignals: string[];
+  dates: string[];
+  commanderBrief: string[];
 };
 
 function timeoutSignal(milliseconds: number) {
@@ -111,6 +133,37 @@ export async function buildStageAssessment(request: {
     body: JSON.stringify(request)
   }, 8000);
   return payload.data as StageAssessmentResponse;
+}
+
+export async function buildProjectControlSnapshot(request: {
+  currentStage: string;
+  nDocuments: object[];
+}): Promise<ProjectControlSnapshotResponse> {
+  const baseUrl = (import.meta.env.VITE_ISO_API_BASE_URL || "/iso/api/v1").replace(/\/$/, "");
+  const payload = await fetchJson(`${baseUrl}/n-documents/project-control-snapshot`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request)
+  }, 8000);
+  return payload.data as ProjectControlSnapshotResponse;
+}
+
+export async function queryNDocumentKnowledge(request: {
+  query: string;
+  nDocuments: object[];
+}): Promise<{
+  query: string;
+  queryKeywords: string[];
+  results: object[];
+  answerBasis: Array<{ fileName: string; stage: string; eventType: string; excerpt: string }>;
+}> {
+  const baseUrl = (import.meta.env.VITE_ISO_API_BASE_URL || "/iso/api/v1").replace(/\/$/, "");
+  const payload = await fetchJson(`${baseUrl}/n-documents/rag-query`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request)
+  }, 8000);
+  return payload.data;
 }
 
 export async function probeIsoApi(): Promise<ApiProbeState> {

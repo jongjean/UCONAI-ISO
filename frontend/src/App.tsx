@@ -17,7 +17,15 @@
   Sparkles,
   Users
 } from "lucide-react";
-import { analyzeNDocument, buildStageAssessment as requestStageAssessment, probeIsoApi, runAiCommander, type ApiProbeState } from "./api";
+import {
+  analyzeNDocument,
+  buildProjectControlSnapshot,
+  buildStageAssessment as requestStageAssessment,
+  probeIsoApi,
+  queryNDocumentKnowledge,
+  runAiCommander,
+  type ApiProbeState
+} from "./api";
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import {
@@ -135,7 +143,28 @@ type NDocumentRecord = {
   contentPreview: string;
   done?: string[];
   todo?: string[];
+  risks?: string[];
+  scheduleSignals?: string[];
+  referenceSignals?: string[];
+  dates?: string[];
+  chunks?: Array<{
+    id: string;
+    fileName: string;
+    text: string;
+    keywords: string[];
+    stageHints: string[];
+    eventHints: string[];
+  }>;
   storageRef?: string;
+};
+
+type ProjectControlSnapshot = {
+  actionItems: string[];
+  risks: string[];
+  scheduleSignals: string[];
+  referenceSignals: string[];
+  dates: string[];
+  commanderBrief: string[];
 };
 
 type WizardHistoryEntry = {
@@ -164,6 +193,7 @@ type WorkspaceSaveState = {
   regulationAnalysis?: RegulationAnalysis;
   superAgentMessages?: SuperAgentMessage[];
   nDocuments?: NDocumentRecord[];
+  projectControlSnapshot?: ProjectControlSnapshot;
   wizardHistory?: WizardHistoryEntry[];
   isWizardPageOpen?: boolean;
 };
@@ -374,6 +404,15 @@ const defaultSuperAgentMessages: SuperAgentMessage[] = [
   }
 ];
 
+const defaultProjectControlSnapshot: ProjectControlSnapshot = {
+  actionItems: ["Upload source evidence so the AI Commander can build the first action queue."],
+  risks: [],
+  scheduleSignals: [],
+  referenceSignals: [],
+  dates: [],
+  commanderBrief: ["Project control snapshot is waiting for N-document evidence."]
+};
+
 const nDocumentEventLabels: Record<NDocumentEventType, string> = {
   presentation: "Presentation",
   decision: "Decision",
@@ -470,6 +509,7 @@ export function App() {
   const [nDocuments, setNDocuments] = useState<NDocumentRecord[]>(savedWorkspace.nDocuments || []);
   const [openNDocumentId, setOpenNDocumentId] = useState<string | null>(savedWorkspace.nDocuments?.[0]?.id || null);
   const [stageEngineMessage, setStageEngineMessage] = useState("Stage engine is waiting for source evidence.");
+  const [projectControlSnapshot, setProjectControlSnapshot] = useState<ProjectControlSnapshot>(savedWorkspace.projectControlSnapshot || defaultProjectControlSnapshot);
   const [wizardHistory, setWizardHistory] = useState<WizardHistoryEntry[]>(savedWorkspace.wizardHistory || []);
   const [isWizardPageOpen, setIsWizardPageOpen] = useState(savedWorkspace.isWizardPageOpen || false);
   const [activeModuleKey, setActiveModuleKey] = useState<keyof OperationalModules>("roadmapEvents");
@@ -617,6 +657,7 @@ export function App() {
       regulationAnalysis,
       superAgentMessages,
       nDocuments,
+      projectControlSnapshot,
       wizardHistory,
       isWizardPageOpen
     };
@@ -640,6 +681,7 @@ export function App() {
     regulationAnalysis,
     superAgentMessages,
     nDocuments,
+    projectControlSnapshot,
     wizardHistory,
     isWizardPageOpen,
     selectedChapterId,
@@ -962,6 +1004,12 @@ export function App() {
     setSuperAgentInput("");
     setWorkspaceMessage("AI Commander is thinking with the project context.");
     try {
+      let knowledgeBasis: unknown = null;
+      try {
+        knowledgeBasis = await queryNDocumentKnowledge({ query: prompt, nDocuments });
+      } catch {
+        knowledgeBasis = null;
+      }
       const result = await runAiCommander({
         prompt,
         messages: messagesForApi,
@@ -970,7 +1018,9 @@ export function App() {
           regulationAnalysis,
           standardSetup,
           projectDraft: editableProjectDraft,
-          nDocuments
+          nDocuments,
+          projectControlSnapshot,
+          knowledgeBasis
         }
       });
       const agentMessage: SuperAgentMessage = {
@@ -1090,6 +1140,11 @@ export function App() {
           contentPreview: engineAnalysis.contentPreview,
           done: engineAnalysis.done,
           todo: engineAnalysis.todo,
+          risks: engineAnalysis.risks,
+          scheduleSignals: engineAnalysis.scheduleSignals,
+          referenceSignals: engineAnalysis.referenceSignals,
+          dates: engineAnalysis.dates,
+          chunks: engineAnalysis.chunks,
           storageRef: engineAnalysis.storageRef
         } satisfies NDocumentRecord;
       } catch {
@@ -1103,7 +1158,15 @@ export function App() {
         stage: classification.stage,
         confidence: "low",
         summary: `${nDocumentEventLabels[classification.eventType]} evidence mapped to ${classification.stage}.`,
-        contentPreview: preview
+        contentPreview: preview,
+        chunks: [{
+          id: `local-chunk-${Date.now()}-${index}`,
+          fileName: file.name,
+          text: preview,
+          keywords: [],
+          stageHints: [classification.stage],
+          eventHints: [classification.eventType]
+        }]
       } satisfies NDocumentRecord;
     }));
     setNDocuments((current) => [...records, ...current]);
@@ -1137,6 +1200,30 @@ export function App() {
       setStageEngineMessage(`Stage engine v0.1: ${assessment.currentStage} / ${assessment.progress}% with ${assessment.nextActions[0]}`);
     } catch {
       setStageEngineMessage("Stage engine API is not connected on this path; local stage markers remain active.");
+    }
+    try {
+      const snapshot = await buildProjectControlSnapshot({
+        currentStage: records[0]?.stage || currentStage,
+        nDocuments: [...records, ...nDocuments]
+      });
+      setProjectControlSnapshot({
+        actionItems: snapshot.actionItems,
+        risks: snapshot.risks,
+        scheduleSignals: snapshot.scheduleSignals,
+        referenceSignals: snapshot.referenceSignals,
+        dates: snapshot.dates,
+        commanderBrief: snapshot.commanderBrief
+      });
+    } catch {
+      const mergedRecords = [...records, ...nDocuments];
+      setProjectControlSnapshot({
+        actionItems: mergedRecords.flatMap((record) => record.todo || []).slice(0, 8),
+        risks: mergedRecords.flatMap((record) => record.risks || []).slice(0, 8),
+        scheduleSignals: mergedRecords.flatMap((record) => record.scheduleSignals || []).slice(0, 8),
+        referenceSignals: mergedRecords.flatMap((record) => record.referenceSignals || []).slice(0, 8),
+        dates: [...new Set(mergedRecords.flatMap((record) => record.dates || []))].slice(0, 8),
+        commanderBrief: ["Project control snapshot is using browser fallback until the API is connected."]
+      });
     }
     const agentMessage: SuperAgentMessage = {
       id: `n-doc-agent-${Date.now()}`,
@@ -1558,6 +1645,35 @@ export function App() {
                 <span>To do</span>
                 <ul>
                   {regulationAnalysis.todo.map((item) => <li key={`todo-${item}`}>{item}</li>)}
+                </ul>
+              </article>
+            </div>
+          </div>
+          <div className="project-control-snapshot-panel">
+            <div className="regulation-analysis-head">
+              <div>
+                <span>Project control snapshot</span>
+                <strong>N-document driven command queue</strong>
+                <p>Extracted actions, risks, schedules and reference signals are used by AI Commander before general advice.</p>
+              </div>
+            </div>
+            <div className="analysis-status-grid">
+              <article>
+                <span>Commander brief</span>
+                <ul>
+                  {projectControlSnapshot.commanderBrief.slice(0, 4).map((item) => <li key={`brief-${item}`}>{item}</li>)}
+                </ul>
+              </article>
+              <article>
+                <span>Action items</span>
+                <ul>
+                  {projectControlSnapshot.actionItems.slice(0, 5).map((item) => <li key={`action-${item}`}>{item}</li>)}
+                </ul>
+              </article>
+              <article>
+                <span>Risks and schedule</span>
+                <ul>
+                  {[...projectControlSnapshot.risks, ...projectControlSnapshot.scheduleSignals, ...projectControlSnapshot.dates].slice(0, 6).map((item) => <li key={`risk-schedule-${item}`}>{item}</li>)}
                 </ul>
               </article>
             </div>
