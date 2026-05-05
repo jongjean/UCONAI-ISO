@@ -22,11 +22,13 @@ import {
   buildEvidenceGrounding,
   buildProjectMemorySnapshot,
   buildProjectControlSnapshot,
+  buildSecondCheckpointSnapshot,
   buildStageAssessment as requestStageAssessment,
   probeIsoApi,
   queryNDocumentKnowledge,
   runAiCommander,
-  type ApiProbeState
+  type ApiProbeState,
+  type SecondCheckpointSnapshotResponse
 } from "./api";
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
@@ -198,6 +200,14 @@ type ProjectMemorySnapshot = {
   id: string;
   createdAt: string;
   setupCompletion: number;
+  stageAssessment: {
+    currentStage: string;
+    progress: number;
+    stageEvidence: Record<string, number>;
+    latestEvidence: null | { fileName: string; eventType: string; stage: string; summary: string };
+    nextActions: string[];
+    missingEvidence: string[];
+  };
   fieldLedger: {
     totalFields: number;
     filledFields: number;
@@ -245,6 +255,7 @@ type WorkspaceSaveState = {
   fieldChangeLog?: FieldChangeLogEntry[];
   aiDecisionLedger?: AiDecisionEntry[];
   projectMemorySnapshot?: ProjectMemorySnapshot;
+  secondCheckpointSnapshot?: SecondCheckpointSnapshotResponse;
   isWizardPageOpen?: boolean;
 };
 
@@ -479,6 +490,14 @@ const defaultProjectMemorySnapshot: ProjectMemorySnapshot = {
   id: "project-memory-empty",
   createdAt: "Not captured yet",
   setupCompletion: 0,
+  stageAssessment: {
+    currentStage: "PWI",
+    progress: 0,
+    stageEvidence: {},
+    latestEvidence: null,
+    nextActions: [],
+    missingEvidence: []
+  },
   fieldLedger: {
     totalFields: 0,
     filledFields: 0,
@@ -492,6 +511,49 @@ const defaultProjectMemorySnapshot: ProjectMemorySnapshot = {
     restoreTargets: ["standardSetup", "projectDraft", "documentSections"],
     note: "Wizard history is waiting for the first editable change."
   }
+};
+
+const defaultSecondCheckpointSnapshot: SecondCheckpointSnapshotResponse = {
+  checkpoint: "second-checkpoint-phase-7",
+  stage: "PWI",
+  overallReady: false,
+  phaseProgress: {
+    phase5ProcedureEngine: 0,
+    phase6SuperCommander: 0,
+    phase7DocumentExport: 0
+  },
+  phase5: {
+    readiness: { overallProgress: 0, ready: false, rows: [] },
+    trackRisk: { summary: { recommendation: "Waiting for project evidence.", highRiskStages: [], unverifiedProcedureWindowCount: 0 } },
+    meetingMission: { missions: [] },
+    calendar: { urgentCount: 0, missingEvidenceCount: 0 },
+    projectControl: {
+      stageAssessment: { currentStage: "PWI", progress: 0, stageEvidence: {}, latestEvidence: null, nextActions: [], missingEvidence: [] },
+      actionItems: [],
+      risks: [],
+      scheduleSignals: [],
+      referenceSignals: [],
+      dates: [],
+      commanderBrief: []
+    }
+  },
+  phase6: {
+    grounding: defaultEvidenceGrounding,
+    memory: defaultProjectMemorySnapshot,
+    brain: { chiefSummary: { health: 0, riskLevel: "watch", nextBestAction: "Open Start Wizard and upload evidence." }, missionQueue: [] },
+    chief: { specialists: [] },
+    commanderRules: []
+  },
+  phase7: {
+    exportGate: { gateOpen: false, blockers: [], osdEntryChecklist: [] },
+    docxAssembly: { sections: [] },
+    sourcePackage: { ready: false, blockers: [] },
+    exportExecutionAllowed: false,
+    executionBoundary: "Waiting for project state."
+  },
+  blockers: [],
+  nextActions: ["Open Start Wizard, upload evidence and ask AI Commander for the next action."],
+  persistence: "preview"
 };
 
 const nDocumentEventLabels: Record<NDocumentEventType, string> = {
@@ -596,6 +658,7 @@ export function App() {
   const [fieldChangeLog, setFieldChangeLog] = useState<FieldChangeLogEntry[]>(savedWorkspace.fieldChangeLog || []);
   const [aiDecisionLedger, setAiDecisionLedger] = useState<AiDecisionEntry[]>(savedWorkspace.aiDecisionLedger || []);
   const [projectMemorySnapshot, setProjectMemorySnapshot] = useState<ProjectMemorySnapshot>(savedWorkspace.projectMemorySnapshot || defaultProjectMemorySnapshot);
+  const [secondCheckpointSnapshot, setSecondCheckpointSnapshot] = useState<SecondCheckpointSnapshotResponse>(savedWorkspace.secondCheckpointSnapshot || defaultSecondCheckpointSnapshot);
   const [isWizardPageOpen, setIsWizardPageOpen] = useState(savedWorkspace.isWizardPageOpen || false);
   const [activeModuleKey, setActiveModuleKey] = useState<keyof OperationalModules>("roadmapEvents");
   const [moduleJson, setModuleJson] = useState(JSON.stringify((savedWorkspace.operationalModules || defaultOperationalModules).roadmapEvents, null, 2));
@@ -748,6 +811,7 @@ export function App() {
       fieldChangeLog,
       aiDecisionLedger,
       projectMemorySnapshot,
+      secondCheckpointSnapshot,
       isWizardPageOpen
     };
     if (typeof window !== "undefined") {
@@ -776,6 +840,7 @@ export function App() {
     fieldChangeLog,
     aiDecisionLedger,
     projectMemorySnapshot,
+    secondCheckpointSnapshot,
     isWizardPageOpen,
     selectedChapterId,
     selectedClauseId
@@ -820,6 +885,37 @@ export function App() {
       active = false;
     };
   }, [aiDecisionLedger, editableProjectDraft, fieldChangeLog, nDocuments, standardSetup]);
+
+  useEffect(() => {
+    let active = true;
+    buildSecondCheckpointSnapshot({
+      currentStage: standardSetup.currentStage || editableProjectDraft.stage || "PWI",
+      standardSetup,
+      projectDraft: editableProjectDraft,
+      nDocuments,
+      fieldChangeLog,
+      decisions: aiDecisionLedger,
+      query: "second checkpoint procedure commander export readiness"
+    }).then((snapshot) => {
+      if (active) setSecondCheckpointSnapshot(snapshot);
+    }).catch(() => {
+      if (active) {
+        setSecondCheckpointSnapshot({
+          ...defaultSecondCheckpointSnapshot,
+          stage: standardSetup.currentStage || editableProjectDraft.stage || "PWI",
+          phase6: {
+            ...defaultSecondCheckpointSnapshot.phase6,
+            grounding: evidenceGrounding,
+            memory: projectMemorySnapshot
+          },
+          nextActions: projectControlSnapshot.actionItems.slice(0, 4)
+        });
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [aiDecisionLedger, editableProjectDraft, evidenceGrounding, fieldChangeLog, nDocuments, projectControlSnapshot, projectMemorySnapshot, standardSetup]);
 
   const selectedChapter = chapterBlocks.find((block) => block.id === selectedChapterId) || chapterBlocks[0] || chapterWorkspaceBlocks[0];
 
@@ -1482,6 +1578,7 @@ export function App() {
       fieldChangeLog,
       aiDecisionLedger,
       projectMemorySnapshot,
+      secondCheckpointSnapshot,
       isWizardPageOpen
     };
     setWorkspaceJson(JSON.stringify(payload, null, 2));
@@ -1516,6 +1613,7 @@ export function App() {
       if (parsed.fieldChangeLog) setFieldChangeLog(parsed.fieldChangeLog);
       if (parsed.aiDecisionLedger) setAiDecisionLedger(parsed.aiDecisionLedger);
       if (parsed.projectMemorySnapshot) setProjectMemorySnapshot(parsed.projectMemorySnapshot);
+      if (parsed.secondCheckpointSnapshot) setSecondCheckpointSnapshot(parsed.secondCheckpointSnapshot);
       if (typeof parsed.isWizardPageOpen === "boolean") setIsWizardPageOpen(parsed.isWizardPageOpen);
       setWorkspaceMessage("Workspace JSON imported.");
     } catch {
@@ -1548,6 +1646,7 @@ export function App() {
     setFieldChangeLog([]);
     setAiDecisionLedger([]);
     setProjectMemorySnapshot(defaultProjectMemorySnapshot);
+    setSecondCheckpointSnapshot(defaultSecondCheckpointSnapshot);
     setIsWizardPageOpen(false);
     setActiveModuleKey("roadmapEvents");
     setModuleJson(JSON.stringify(defaultOperationalModules.roadmapEvents, null, 2));
@@ -1926,6 +2025,59 @@ export function App() {
                   <li>{projectMemorySnapshot.setupCompletion}% setup field completion</li>
                   <li>{projectMemorySnapshot.fieldLedger.recentChanges.length} recent field change(s)</li>
                   <li>{projectMemorySnapshot.decisionLedger.length} AI decision record(s)</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+          <div className="project-control-snapshot-panel second-checkpoint-panel">
+            <div className="regulation-analysis-head">
+              <div>
+                <span>Second checkpoint to Phase 7</span>
+                <strong>{secondCheckpointSnapshot.overallReady ? "Ready for second checkpoint review" : "Checkpoint gaps visible"}</strong>
+                <p>Procedure engine, Super Commander and DOCX/OSD export readiness are evaluated as one control package.</p>
+              </div>
+            </div>
+            <div className="checkpoint-progress-grid">
+              <article>
+                <span>5 Procedure engine</span>
+                <strong>{secondCheckpointSnapshot.phaseProgress.phase5ProcedureEngine}%</strong>
+                <p>{secondCheckpointSnapshot.phase5.trackRisk.summary.recommendation}</p>
+              </article>
+              <article>
+                <span>6 Super Commander</span>
+                <strong>{secondCheckpointSnapshot.phaseProgress.phase6SuperCommander}%</strong>
+                <p>{secondCheckpointSnapshot.phase6.brain.chiefSummary.nextBestAction}</p>
+              </article>
+              <article>
+                <span>7 DOCX/OSD export</span>
+                <strong>{secondCheckpointSnapshot.phaseProgress.phase7DocumentExport}%</strong>
+                <p>{secondCheckpointSnapshot.phase7.executionBoundary}</p>
+              </article>
+            </div>
+            <div className="analysis-status-grid">
+              <article>
+                <span>Stage readiness</span>
+                <strong>{secondCheckpointSnapshot.stage} / {secondCheckpointSnapshot.phase5.readiness.overallProgress}%</strong>
+                <ul>
+                  {secondCheckpointSnapshot.phase5.readiness.rows.slice(0, 6).map((row) => (
+                    <li key={row.area}>{row.area}: {row.current}/{row.target} {row.status}</li>
+                  ))}
+                </ul>
+              </article>
+              <article>
+                <span>Commander council</span>
+                <strong>{secondCheckpointSnapshot.phase6.chief.specialists.length} specialist(s)</strong>
+                <ul>
+                  {secondCheckpointSnapshot.phase6.brain.missionQueue.slice(0, 4).map((mission) => (
+                    <li key={`${mission.title}-${mission.priority}`}>{mission.priority}: {mission.title}</li>
+                  ))}
+                </ul>
+              </article>
+              <article>
+                <span>Export blockers</span>
+                <strong>{secondCheckpointSnapshot.blockers.length} blocker(s)</strong>
+                <ul>
+                  {secondCheckpointSnapshot.nextActions.slice(0, 5).map((action) => <li key={action}>{action}</li>)}
                 </ul>
               </article>
             </div>

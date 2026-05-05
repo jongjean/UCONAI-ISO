@@ -100,6 +100,8 @@ for (const token of [
   "export-gate-grid",
   "exportGateSignals.map",
   "Formal Package",
+  "secondCheckpointSnapshot",
+  "checkpoint-progress-grid",
   "formal-package-grid",
   "formalPackageSignals.map"
 ]) {

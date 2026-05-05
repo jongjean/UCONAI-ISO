@@ -28,6 +28,7 @@
   { method: "POST", path: "/api/v1/agents/orchestration-preview", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/agents/chief-control-plan", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/agents/brain-panel-preview", status: "active", gate: "none" },
+  { method: "POST", path: "/api/v1/agents/second-checkpoint-snapshot", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/agents/authoring-guidance-preview", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/agents/workbench-preview", status: "active", gate: "none" },
   { method: "GET", path: "/api/v1/projects", status: "safe-placeholder", gate: "none" },

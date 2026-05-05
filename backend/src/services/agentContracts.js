@@ -1,6 +1,9 @@
 ﻿import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { buildEvidenceGrounding, buildProjectControlSnapshot, buildProjectMemorySnapshot } from "./nDocumentEngine.js";
+import { buildDocxAssemblyPlan, buildFormalExportGateReport, buildOsdCompanionReportPreview, buildSourcePackageBindingReport } from "./exportPolicy.js";
+import { buildCalendarMissionOverlay, buildMeetingMissionBoard, buildStageReadinessMatrix, buildTrackCompressionRiskReport } from "./roadmapEngine.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -217,6 +220,158 @@ export function buildAgentBrainPanelPreview(input = {}) {
   };
 }
 
+export function buildSecondCheckpointSnapshot(input = {}) {
+  const stage = normalizeAgentStage(input.stage || input.currentStage || input.standardSetup?.currentStage || input.projectDraft?.stage || "PWI");
+  const nDocuments = Array.isArray(input.nDocuments) ? input.nDocuments : [];
+  const progress = input.progress || deriveProgressFromProject(input, nDocuments);
+  const projectContext = {
+    stage,
+    activeChapter: input.activeChapter || { title: "ISO project control room", area: "Export" },
+    issues: input.issues || [],
+    evidence: nDocuments.map((documentRecord) => ({
+      sourceType: documentRecord.eventType || "n-document",
+      title: documentRecord.fileName,
+      confidence: documentRecord.confidence || "medium"
+    }))
+  };
+  const readiness = buildStageReadinessMatrix({ stage, progress });
+  const projectControl = buildProjectControlSnapshot({
+    currentStage: stage === "PUBLICATION" ? "Publish" : stage,
+    nDocuments
+  });
+  const memory = buildProjectMemorySnapshot({
+    currentStage: stage === "PUBLICATION" ? "Publish" : stage,
+    standardSetup: input.standardSetup,
+    projectDraft: input.projectDraft,
+    nDocuments,
+    fieldChangeLog: input.fieldChangeLog,
+    decisions: input.decisions
+  });
+  const grounding = buildEvidenceGrounding({
+    query: input.query || "second checkpoint stage export commander basis",
+    nDocuments
+  });
+  const trackRisk = buildTrackCompressionRiskReport({
+    currentTrack: input.currentTrack || "MONTHS_36",
+    nextTrack: input.nextTrack || input.projectDraft?.track || "MONTHS_24",
+    startDate: input.startDate,
+    progress,
+    windowOverrides: input.windowOverrides
+  });
+  const meetingMission = buildMeetingMissionBoard({
+    track: input.projectDraft?.track || input.track || "MONTHS_36",
+    startDate: input.startDate,
+    meetings: input.meetings,
+    ballots: input.ballots,
+    consultations: input.consultations,
+    stakeholders: input.stakeholders
+  });
+  const calendar = buildCalendarMissionOverlay({
+    track: input.projectDraft?.track || input.track || "MONTHS_36",
+    startDate: input.startDate,
+    meetings: input.meetings,
+    ballots: input.ballots,
+    consultations: input.consultations,
+    evidence: input.evidence,
+    today: input.today
+  });
+  const chief = buildChiefAgentControlPlan(projectContext);
+  const brain = buildAgentBrainPanelPreview(projectContext);
+  const elements = Array.isArray(input.elements) && input.elements.length > 0
+    ? input.elements
+    : defaultExportElements(input, stage);
+  const sourceVersionIds = input.sourceVersionIds || [memory.id];
+  const exportGate = buildFormalExportGateReport({
+    stage,
+    type: input.exportType || "CLEAN_DOCX",
+    projectId: input.projectId || "preview-only",
+    sourceVersionIds,
+    completedChecks: input.completedChecks || completedChecksFromProgress(progress),
+    elements,
+    suppliedFiles: input.suppliedFiles,
+    referenceReady: progress.references >= 75,
+    figureSourcesReady: progress.figures >= 80
+  });
+  const osd = buildOsdCompanionReportPreview({
+    stage,
+    type: "OSD_COMPANION_REPORT",
+    projectId: input.projectId || "preview-only",
+    sourceVersionIds,
+    completedChecks: input.completedChecks || completedChecksFromProgress(progress),
+    referenceReady: progress.references >= 75,
+    figureSourcesReady: progress.figures >= 80
+  });
+  const docxAssembly = buildDocxAssemblyPlan({
+    stage,
+    type: input.exportType || "CLEAN_DOCX",
+    elements
+  });
+  const sourcePackage = buildSourcePackageBindingReport({
+    stage,
+    figures: input.figures || []
+  });
+  const blockers = [
+    ...readiness.rows.filter((row) => row.status !== "ready").map((row) => ({
+      phase: 5,
+      area: row.area,
+      code: "STAGE_READINESS_GAP",
+      message: `${row.area} needs ${row.gap}% more progress for ${stage}.`
+    })),
+    ...exportGate.blockers.map((blocker) => ({
+      phase: 7,
+      area: blocker.area,
+      code: blocker.code,
+      message: blocker.message
+    })),
+    ...sourcePackage.blockers.map((blocker) => ({
+      phase: 7,
+      area: blocker.area,
+      code: blocker.code,
+      message: `${blocker.label} is missing ${blocker.missing.join(", ")}.`
+    }))
+  ];
+
+  return {
+    checkpoint: "second-checkpoint-phase-7",
+    stage,
+    overallReady: blockers.length === 0 && readiness.ready && exportGate.gateOpen,
+    phaseProgress: {
+      phase5ProcedureEngine: readiness.ready ? 100 : Math.max(65, readiness.overallProgress),
+      phase6SuperCommander: Math.min(100, 70 + grounding.answerBasis.length * 5 + Math.min(10, brain.specialistCouncil.length)),
+      phase7DocumentExport: exportGate.gateOpen ? 100 : Math.max(55, 100 - exportGate.blockers.length * 12 - sourcePackage.blockers.length * 10)
+    },
+    phase5: {
+      readiness,
+      trackRisk,
+      meetingMission,
+      calendar,
+      projectControl
+    },
+    phase6: {
+      chief,
+      brain,
+      grounding,
+      memory,
+      commanderRules: [
+        "Super Commander reads procedure, evidence, memory, schedule and export state together.",
+        "AI output remains proposal-only until a document command accepts it.",
+        "HP brokers requests while heavy inference stays on the configured workstation model endpoint."
+      ]
+    },
+    phase7: {
+      exportGate,
+      osd,
+      docxAssembly,
+      sourcePackage,
+      exportExecutionAllowed: false,
+      executionBoundary: "DOCX and package file generation waits for storage, worker and version persistence enablement."
+    },
+    blockers,
+    nextActions: nextActionsForSecondCheckpoint({ readiness, exportGate, sourcePackage, grounding, blockers }),
+    persistence: "second-checkpoint-preview-only-until-db-storage-worker-enabled"
+  };
+}
+
 function inputChecklistFor(agentId) {
   const common = ["projectContext", "currentStage", "deliverableType", "userQuestion"];
   const byAgent = {
@@ -428,5 +583,60 @@ function specialistOutputContract(agentId) {
     chiefBrief: "Short report for the chief agent.",
     sourceClass: agentId.includes("directives") || agentId.includes("osd") ? "official_rule | project_policy" : "project_policy | expert_heuristic | ai_inference"
   };
+}
+
+function normalizeAgentStage(stage) {
+  if (stage === "Publish") return "PUBLICATION";
+  return ["PWI", "NP", "WD", "CD", "DIS", "FDIS", "PUBLICATION"].includes(stage) ? stage : "PWI";
+}
+
+function deriveProgressFromProject(input, nDocuments) {
+  const stage = normalizeAgentStage(input.stage || input.currentStage || input.standardSetup?.currentStage || "PWI");
+  const stageBase = { PWI: 25, NP: 40, WD: 55, CD: 68, DIS: 78, FDIS: 88, PUBLICATION: 96 }[stage] || 25;
+  const evidenceBonus = Math.min(12, nDocuments.length * 3);
+  return {
+    roadmap: clampProgress(stageBase + evidenceBonus),
+    document: clampProgress(Number(input.documentProgress ?? stageBase - 10)),
+    references: clampProgress(Number(input.referenceProgress ?? (nDocuments.length > 0 ? stageBase - 20 : 10))),
+    figures: clampProgress(Number(input.figureProgress ?? (stageBase >= 78 ? 55 : 20))),
+    consensus: clampProgress(Number(input.consensusProgress ?? stageBase - 5 + evidenceBonus)),
+    export: clampProgress(Number(input.exportProgress ?? (stageBase >= 78 ? 45 : 15)))
+  };
+}
+
+function completedChecksFromProgress(progress) {
+  const checks = ["structured-elements"];
+  if (progress.document >= 50) checks.push("version-binding");
+  if (progress.references >= 70) checks.push("references", "bibliography");
+  if (progress.figures >= 80) checks.push("editable-figures");
+  if (progress.export >= 55) checks.push("osd-report");
+  return checks;
+}
+
+function defaultExportElements(input, stage) {
+  const version = input.sourceVersionIds?.[0] || "browser-memory-preview";
+  return [
+    { stableKey: "title", type: "TITLE", title: input.standardSetup?.standardTitle || input.projectDraft?.title || "Untitled ISO project", sourceVersionId: version },
+    { stableKey: "scope", type: "SCOPE", title: "Scope", sourceVersionId: version },
+    { stableKey: "references", type: "NORMATIVE_REFERENCES", title: "Normative references", sourceVersionId: version },
+    { stableKey: "terms", type: "TERM", title: "Terms and definitions", sourceVersionId: version },
+    { stableKey: "figure-1", type: "FIGURE", title: "Figure source package", sourceVersionId: version, editableSourceRef: ["DIS", "FDIS", "PUBLICATION"].includes(stage) ? input.figureSourceRef : "draft-preview" }
+  ];
+}
+
+function nextActionsForSecondCheckpoint({ readiness, exportGate, sourcePackage, grounding, blockers }) {
+  const actions = [];
+  const firstGap = readiness.rows.find((row) => row.status !== "ready");
+  if (firstGap) actions.push(`Raise ${firstGap.area} readiness by ${firstGap.gap}% before depending on the next stage.`);
+  if (!grounding.grounded) actions.push("Upload meeting, ballot, regulation or reference evidence so Commander responses cite a source basis.");
+  if (exportGate.blockers.length > 0) actions.push(`Resolve export gate blocker: ${exportGate.blockers[0].message}`);
+  if (sourcePackage.blockers.length > 0) actions.push("Attach editable figure source package evidence before formal export.");
+  if (blockers.length === 0) actions.push("Run browser review of Start Wizard, AI Commander, stage readiness and export preview together.");
+  return actions.slice(0, 6);
+}
+
+function clampProgress(value) {
+  if (Number.isNaN(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 

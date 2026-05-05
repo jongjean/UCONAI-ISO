@@ -7,6 +7,7 @@ import {
   buildAgentTaskPlan,
   buildAgentBrainPanelPreview,
   buildChiefAgentControlPlan,
+  buildSecondCheckpointSnapshot,
   loadAgentContracts,
   validateAgentTask
 } from "../services/agentContracts.js";
@@ -40,6 +41,10 @@ agentsRouter.post("/chief-control-plan", (req, res) => {
 
 agentsRouter.post("/brain-panel-preview", (req, res) => {
   ok(res, buildAgentBrainPanelPreview(req.body || {}));
+});
+
+agentsRouter.post("/second-checkpoint-snapshot", (req, res) => {
+  ok(res, buildSecondCheckpointSnapshot(req.body || {}));
 });
 
 agentsRouter.post("/authoring-guidance-preview", (req, res) => {

@@ -109,6 +109,41 @@ export type ProjectMemorySnapshotResponse = {
   };
 };
 
+export type SecondCheckpointSnapshotResponse = {
+  checkpoint: string;
+  stage: string;
+  overallReady: boolean;
+  phaseProgress: {
+    phase5ProcedureEngine: number;
+    phase6SuperCommander: number;
+    phase7DocumentExport: number;
+  };
+  phase5: {
+    readiness: { overallProgress: number; ready: boolean; rows: Array<{ area: string; current: number; target: number; gap: number; status: string }> };
+    trackRisk: { summary: { recommendation: string; highRiskStages: string[]; unverifiedProcedureWindowCount: number } };
+    meetingMission: { missions: Array<{ stage: string; primaryMission: string; meetingCount: number; decisionWindowCount: number }> };
+    calendar: { urgentCount: number; missingEvidenceCount: number };
+    projectControl: ProjectControlSnapshotResponse;
+  };
+  phase6: {
+    grounding: EvidenceGroundingResponse;
+    memory: ProjectMemorySnapshotResponse;
+    brain: { chiefSummary: { health: number; riskLevel: string; nextBestAction: string }; missionQueue: Array<{ title: string; priority: string; status: string }> };
+    chief: { specialists: Array<{ id: string; label: string; activation: string }> };
+    commanderRules: string[];
+  };
+  phase7: {
+    exportGate: { gateOpen: boolean; blockers: Array<{ area: string; code: string; message: string }>; osdEntryChecklist: Array<{ id: string; label: string; ready: boolean }> };
+    docxAssembly: { sections: Array<{ stableKey: string; type: string; style: string; warnings: Array<{ code: string; message: string }> }> };
+    sourcePackage: { ready: boolean; blockers: Array<{ area: string; code: string; label: string; missing: string[] }> };
+    exportExecutionAllowed: boolean;
+    executionBoundary: string;
+  };
+  blockers: Array<{ phase: number; area: string; code: string; message: string }>;
+  nextActions: string[];
+  persistence: string;
+};
+
 function timeoutSignal(milliseconds: number) {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), milliseconds);
@@ -224,6 +259,24 @@ export async function buildProjectMemorySnapshot(request: {
     body: JSON.stringify(request)
   }, 8000);
   return payload.data as ProjectMemorySnapshotResponse;
+}
+
+export async function buildSecondCheckpointSnapshot(request: {
+  currentStage: string;
+  standardSetup: object;
+  projectDraft: object;
+  nDocuments: object[];
+  fieldChangeLog: object[];
+  decisions: object[];
+  query?: string;
+}): Promise<SecondCheckpointSnapshotResponse> {
+  const baseUrl = (import.meta.env.VITE_ISO_API_BASE_URL || "/iso/api/v1").replace(/\/$/, "");
+  const payload = await fetchJson(`${baseUrl}/agents/second-checkpoint-snapshot`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request)
+  }, 12000);
+  return payload.data as SecondCheckpointSnapshotResponse;
 }
 
 export async function probeIsoApi(): Promise<ApiProbeState> {

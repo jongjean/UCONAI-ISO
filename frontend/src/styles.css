@@ -817,6 +817,47 @@ h2 {
   font-size: 13px;
 }
 
+.second-checkpoint-panel {
+  border-color: #b8d4f0;
+  background: #f7fbff;
+}
+
+.checkpoint-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.checkpoint-progress-grid article {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 12px;
+}
+
+.checkpoint-progress-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.checkpoint-progress-grid strong {
+  display: block;
+  margin: 5px 0;
+  color: var(--navy);
+  font-size: 22px;
+}
+
+.checkpoint-progress-grid p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .n-document-registry {
   display: grid;
   gap: 12px;
@@ -3653,6 +3694,7 @@ h2 {
   .dashboard-summary-grid,
   .dashboard-member-grid,
   .analysis-status-grid,
+  .checkpoint-progress-grid,
   .memory-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3747,6 +3789,7 @@ h2 {
   .wizard-field-grid,
   .wizard-field-grid.three,
   .memory-grid,
+  .checkpoint-progress-grid,
   .setup-review-grid,
   .workspace-ops-grid,
   .live-module-layout,
