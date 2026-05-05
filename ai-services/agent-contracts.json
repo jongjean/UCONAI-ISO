@@ -1,0 +1,63 @@
+{
+  "version": "0.1.0",
+  "updatedAt": "2026-05-03",
+  "agents": [
+    {
+      "id": "codesign",
+      "label": "Expert co-design agent",
+      "purpose": "Help define title, scope, deliverable type, outline, risks and roadmap direction.",
+      "requiresModel": true,
+      "writesCanonicalText": false
+    },
+    {
+      "id": "drafting",
+      "label": "ISO drafting agent",
+      "purpose": "Generate ISO-style clause alternatives and structured suggestions.",
+      "requiresModel": true,
+      "writesCanonicalText": false
+    },
+    {
+      "id": "directives-osd-check",
+      "label": "Directives and OSD checker",
+      "purpose": "Detect structure, wording, numbering, reference, figure and OSD readiness issues.",
+      "requiresModel": true,
+      "writesCanonicalText": false
+    },
+    {
+      "id": "style-check",
+      "label": "ISO sentence style agent",
+      "purpose": "Detect paper/book/report language and propose ISO-style sentence changes.",
+      "requiresModel": true,
+      "writesCanonicalText": false
+    },
+    {
+      "id": "roadmap",
+      "label": "Roadmap agent",
+      "purpose": "Advise next stage actions, meeting missions, late risks and track implications.",
+      "requiresModel": true,
+      "writesCanonicalText": false
+    },
+    {
+      "id": "reference",
+      "label": "Reference agent",
+      "purpose": "Summarize and classify registered references according to allowed AI use mode.",
+      "requiresModel": true,
+      "writesCanonicalText": false
+    },
+    {
+      "id": "figure-source",
+      "label": "Editable figure source agent",
+      "purpose": "Generate figure specs and editable PPTX/SVG source plans.",
+      "requiresModel": true,
+      "writesCanonicalText": false
+    },
+    {
+      "id": "consensus",
+      "label": "Consensus agent",
+      "purpose": "Track concerns, opposition rationale, cooperation paths and response strategy.",
+      "requiresModel": true,
+      "writesCanonicalText": false
+    }
+  ]
+}
+

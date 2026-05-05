@@ -1,0 +1,296 @@
+{
+  "version": "0.1.0",
+  "updatedAt": "2026-05-03",
+  "sourcePolicy": {
+    "officialRulesCanBlock": true,
+    "officialGuidanceCanWarn": true,
+    "expertHeuristicsAreAdvisory": true,
+    "aiInferencesRequireHumanReview": true
+  },
+  "ruleIdPolicy": {
+    "pattern": "^ISO-[A-Z]{2,8}-[0-9]{3}$",
+    "format": "ISO-{DOMAIN}-{NNN}",
+    "domains": ["SRC", "DOC", "TERM", "REF", "FIG", "ROAD", "CONS", "OSD", "AI"],
+    "stability": "Rule IDs are immutable once referenced by document history, validation events, or export reports."
+  },
+  "severityLevels": [
+    {
+      "code": "INFO",
+      "effect": "Explain context or best practice without blocking progress."
+    },
+    {
+      "code": "WARNING",
+      "effect": "Require visible guidance and an explicit user decision before final export."
+    },
+    {
+      "code": "BLOCKER",
+      "effect": "Block stage transition or export until resolved or formally waived by a project lead."
+    }
+  ],
+  "workflowEffects": [
+    "INLINE_HINT",
+    "EDITOR_WARNING",
+    "STAGE_GATE",
+    "EXPORT_GATE",
+    "HUMAN_REVIEW_REQUIRED"
+  ],
+  "applicability": {
+    "deliverables": ["IS", "TS", "TR", "PAS", "IWA", "GUIDE"],
+    "stages": ["PWI", "NP", "WD", "CD", "DIS", "FDIS", "PUBLICATION"],
+    "documentAreas": [
+      "title",
+      "scope",
+      "introduction",
+      "terms",
+      "abbreviations",
+      "normativeReferences",
+      "clauses",
+      "figures",
+      "tables",
+      "bibliography",
+      "export"
+    ]
+  },
+  "sources": [
+    {
+      "id": "iso-directives-and-policies",
+      "title": "ISO Directives and Policies",
+      "url": "https://www.iso.org/directives-and-policies.html",
+      "class": "OFFICIAL_RULE_INDEX",
+      "retrievedAt": "2026-05-03",
+      "notes": "Entry point for official ISO/IEC Directives and related policy documents."
+    },
+    {
+      "id": "iso-directives-part-1-consolidated",
+      "title": "ISO/IEC Directives Part 1 and Consolidated ISO Supplement",
+      "url": "https://www.iso.org/sites/directives/current/consolidated/",
+      "class": "OFFICIAL_RULE",
+      "retrievedAt": "2026-05-03",
+      "notes": "Procedures for technical work and ISO-specific procedures."
+    },
+    {
+      "id": "iso-directives-part-2",
+      "title": "ISO/IEC Directives Part 2",
+      "url": "https://www.iso.org/directives-and-policies.html",
+      "class": "OFFICIAL_RULE",
+      "retrievedAt": "2026-05-03",
+      "notes": "Rules for structure and drafting."
+    },
+    {
+      "id": "iso-drafting-standards",
+      "title": "ISO Drafting Standards",
+      "url": "https://www.iso.org/drafting-standards.html",
+      "class": "OFFICIAL_GUIDANCE",
+      "retrievedAt": "2026-05-03",
+      "notes": "Drafting support, templates, house style and OSD default statement."
+    },
+    {
+      "id": "iso-deliverables",
+      "title": "ISO Deliverables",
+      "url": "https://www.iso.org/deliverables-all.html",
+      "class": "OFFICIAL_GUIDANCE",
+      "retrievedAt": "2026-05-03",
+      "notes": "Definitions of ISO Standards, TS, TR, PAS, IWA and Guides."
+    },
+    {
+      "id": "iso-osd-kb",
+      "title": "Online Standards Development Knowledge Base",
+      "url": "https://helpdesk-docs.iso.org/collection/604-online-standards-development-osd",
+      "class": "OFFICIAL_GUIDANCE",
+      "retrievedAt": "2026-05-03",
+      "notes": "OSD usage, permissions, commenting, drafting and validation."
+    },
+    {
+      "id": "iso-osd-overview",
+      "title": "What is Online Standards Development (OSD)",
+      "url": "https://helpdesk-docs.iso.org/article/649-what-is-online-standards-development-osd",
+      "class": "OFFICIAL_GUIDANCE",
+      "retrievedAt": "2026-05-03",
+      "notes": "OSD collaboration and content quality overview."
+    },
+    {
+      "id": "iso-osd-adoption",
+      "title": "OSD adoption by ISO committees and eligible projects",
+      "url": "https://helpdesk-docs.iso.org/article/784-osd-adoption-by-iso-committes-and-eligible-projects",
+      "class": "OFFICIAL_GUIDANCE",
+      "retrievedAt": "2026-05-03",
+      "notes": "OSD default choice for eligible ISO/IEC deliverables from January 2025."
+    }
+  ],
+  "deliverables": [
+    {
+      "code": "IS",
+      "label": "International Standard",
+      "engineMode": "normative-standard"
+    },
+    {
+      "code": "TS",
+      "label": "Technical Specification",
+      "engineMode": "technical-specification"
+    },
+    {
+      "code": "TR",
+      "label": "Technical Report",
+      "engineMode": "informative-report"
+    },
+    {
+      "code": "PAS",
+      "label": "Publicly Available Specification",
+      "engineMode": "urgent-market-specification"
+    },
+    {
+      "code": "IWA",
+      "label": "International Workshop Agreement",
+      "engineMode": "workshop-agreement"
+    },
+    {
+      "code": "GUIDE",
+      "label": "ISO Guide",
+      "engineMode": "guidance-document"
+    }
+  ],
+  "stages": ["PWI", "NP", "WD", "CD", "DIS", "FDIS", "PUBLICATION"],
+  "ruleClasses": ["OFFICIAL_RULE", "OFFICIAL_GUIDANCE", "PROJECT_POLICY", "EXPERT_HEURISTIC", "AI_INFERENCE", "USER_NOTE"],
+  "rules": [
+    {
+      "id": "ISO-SRC-001",
+      "title": "Official source precedence",
+      "class": "PROJECT_POLICY",
+      "sourceIds": ["iso-directives-and-policies", "iso-directives-part-1-consolidated", "iso-directives-part-2"],
+      "severity": "BLOCKER",
+      "workflowEffect": "HUMAN_REVIEW_REQUIRED",
+      "appliesTo": {
+        "deliverables": ["IS", "TS", "TR", "PAS", "IWA", "GUIDE"],
+        "stages": ["PWI", "NP", "WD", "CD", "DIS", "FDIS", "PUBLICATION"],
+        "documentAreas": ["export"]
+      },
+      "guidance": "When project memory, AI output, and official source material conflict, official ISO/IEC source material must govern the product decision."
+    },
+    {
+      "id": "ISO-DOC-001",
+      "title": "Scope text stability",
+      "class": "EXPERT_HEURISTIC",
+      "sourceIds": ["iso-directives-part-2"],
+      "severity": "WARNING",
+      "workflowEffect": "STAGE_GATE",
+      "appliesTo": {
+        "deliverables": ["IS", "TS", "TR", "PAS", "IWA", "GUIDE"],
+        "stages": ["NP", "WD", "CD", "DIS", "FDIS"],
+        "documentAreas": ["scope"]
+      },
+      "guidance": "Scope changes after committee alignment can have procedural and consensus consequences, so the editor must show change history, impact notes, and stakeholder rationale."
+    },
+    {
+      "id": "ISO-DOC-002",
+      "title": "Structured clause numbering",
+      "class": "OFFICIAL_GUIDANCE",
+      "sourceIds": ["iso-directives-part-2", "iso-drafting-standards"],
+      "severity": "WARNING",
+      "workflowEffect": "EDITOR_WARNING",
+      "appliesTo": {
+        "deliverables": ["IS", "TS", "TR", "PAS", "IWA", "GUIDE"],
+        "stages": ["WD", "CD", "DIS", "FDIS", "PUBLICATION"],
+        "documentAreas": ["clauses", "terms", "figures", "tables"]
+      },
+      "guidance": "Document structure must be managed as numbered elements, not pasted free text, so insertion, deletion, and OSD export remain stable."
+    },
+    {
+      "id": "ISO-TERM-001",
+      "title": "Term entry caution",
+      "class": "EXPERT_HEURISTIC",
+      "sourceIds": ["iso-directives-part-2", "iso-drafting-standards"],
+      "severity": "WARNING",
+      "workflowEffect": "EDITOR_WARNING",
+      "appliesTo": {
+        "deliverables": ["IS", "TS", "TR", "PAS", "IWA", "GUIDE"],
+        "stages": ["WD", "CD", "DIS", "FDIS"],
+        "documentAreas": ["terms", "abbreviations"]
+      },
+      "guidance": "Term, definition, and abbreviation edits must preserve conceptual consistency across title, scope, clauses, figures, and bibliography candidates."
+    },
+    {
+      "id": "ISO-REF-001",
+      "title": "Reference use intent",
+      "class": "PROJECT_POLICY",
+      "sourceIds": ["iso-directives-part-2"],
+      "severity": "WARNING",
+      "workflowEffect": "INLINE_HINT",
+      "appliesTo": {
+        "deliverables": ["IS", "TS", "TR", "PAS", "IWA", "GUIDE"],
+        "stages": ["PWI", "NP", "WD", "CD", "DIS", "FDIS"],
+        "documentAreas": ["normativeReferences", "bibliography"]
+      },
+      "guidance": "Every registered reference must record whether it may be summarized, compared, excluded, or later linked as bibliography evidence."
+    },
+    {
+      "id": "ISO-FIG-001",
+      "title": "Editable figure source readiness",
+      "class": "PROJECT_POLICY",
+      "sourceIds": ["iso-drafting-standards", "iso-osd-kb"],
+      "severity": "BLOCKER",
+      "workflowEffect": "EXPORT_GATE",
+      "appliesTo": {
+        "deliverables": ["IS", "TS", "TR", "PAS", "IWA", "GUIDE"],
+        "stages": ["DIS", "FDIS", "PUBLICATION"],
+        "documentAreas": ["figures", "export"]
+      },
+      "guidance": "A raster preview is not enough for final submission readiness; editable source packages must be tracked for diagrams where text or shapes may need committee or production edits."
+    },
+    {
+      "id": "ISO-ROAD-001",
+      "title": "Track recalculation visibility",
+      "class": "PROJECT_POLICY",
+      "sourceIds": ["iso-directives-part-1-consolidated"],
+      "severity": "WARNING",
+      "workflowEffect": "STAGE_GATE",
+      "appliesTo": {
+        "deliverables": ["IS", "TS", "TR", "PAS", "IWA", "GUIDE"],
+        "stages": ["PWI", "NP", "WD", "CD", "DIS", "FDIS"],
+        "documentAreas": ["export"]
+      },
+      "guidance": "When the project track changes between 36, 24, and 18 months, the roadmap must expose affected milestones, minimum windows, ballots, consultations, and meeting missions."
+    },
+    {
+      "id": "ISO-CONS-001",
+      "title": "Consensus mission trace",
+      "class": "EXPERT_HEURISTIC",
+      "sourceIds": ["iso-directives-part-1-consolidated"],
+      "severity": "INFO",
+      "workflowEffect": "INLINE_HINT",
+      "appliesTo": {
+        "deliverables": ["IS", "TS", "TR", "PAS", "IWA", "GUIDE"],
+        "stages": ["PWI", "NP", "WD", "CD", "DIS"],
+        "documentAreas": ["scope", "clauses"]
+      },
+      "guidance": "Meeting preparation should identify who needs to understand, support, challenge, or soften objections before the next procedural milestone."
+    },
+    {
+      "id": "ISO-OSD-001",
+      "title": "OSD companion readiness",
+      "class": "OFFICIAL_GUIDANCE",
+      "sourceIds": ["iso-osd-kb", "iso-osd-overview", "iso-osd-adoption"],
+      "severity": "WARNING",
+      "workflowEffect": "EXPORT_GATE",
+      "appliesTo": {
+        "deliverables": ["IS", "TS", "TR", "PAS", "IWA", "GUIDE"],
+        "stages": ["WD", "CD", "DIS", "FDIS", "PUBLICATION"],
+        "documentAreas": ["export"]
+      },
+      "guidance": "The platform prepares structured drafting support before OSD entry, while treating OSD as the official online development environment where applicable."
+    },
+    {
+      "id": "ISO-AI-001",
+      "title": "AI output cannot silently become canonical text",
+      "class": "PROJECT_POLICY",
+      "sourceIds": ["iso-directives-part-2", "iso-drafting-standards"],
+      "severity": "BLOCKER",
+      "workflowEffect": "HUMAN_REVIEW_REQUIRED",
+      "appliesTo": {
+        "deliverables": ["IS", "TS", "TR", "PAS", "IWA", "GUIDE"],
+        "stages": ["PWI", "NP", "WD", "CD", "DIS", "FDIS"],
+        "documentAreas": ["title", "scope", "introduction", "terms", "abbreviations", "clauses"]
+      },
+      "guidance": "AI suggestions must remain proposed text until an authorized editor accepts them into the structured document history."
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+# Draft only. Do not paste into the active Caddyfile without validation.
+
+handle_path /iso/api/* {
+	reverse_proxy 127.0.0.1:4510
+}
+
+handle_path /iso/* {
+	root * /uconai/www/iso
+	try_files {path} /index.html
+	file_server
+}

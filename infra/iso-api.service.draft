@@ -1,0 +1,22 @@
+[Unit]
+Description=UCONAI ISO API (draft, not installed)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/uconai/projects/iso
+Environment=NODE_ENV=production
+Environment=ISO_API_HOST=127.0.0.1
+Environment=ISO_API_PORT=4510
+Environment=ISO_PUBLIC_BASE_PATH=/iso/
+Environment=ISO_DATA_ROOT=/uconai/data/iso
+Environment=ISO_STORAGE_ROOT=/uconai/data/iso/storage
+Environment=ISO_LOG_DIR=/uconai/data/iso/logs
+ExecStart=/usr/bin/npm --workspace backend run start
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
