@@ -2,7 +2,9 @@ import { Router } from "express";
 import { ok } from "../http/respond.js";
 import {
   analyzeNDocument,
+  buildEvidenceGrounding,
   buildKnowledgeIndex,
+  buildProjectMemorySnapshot,
   buildProjectControlSnapshot,
   buildStageAssessment,
   queryKnowledgeIndex,
@@ -40,4 +42,12 @@ nDocumentsRouter.post("/rag-query", (req, res) => {
 
 nDocumentsRouter.post("/project-control-snapshot", (req, res) => {
   ok(res, buildProjectControlSnapshot(req.body || {}));
+});
+
+nDocumentsRouter.post("/evidence-grounding", (req, res) => {
+  ok(res, buildEvidenceGrounding(req.body || {}));
+});
+
+nDocumentsRouter.post("/project-memory-snapshot", (req, res) => {
+  ok(res, buildProjectMemorySnapshot(req.body || {}));
 });

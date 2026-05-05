@@ -58,6 +58,8 @@
   { method: "POST", path: "/api/v1/n-documents/knowledge-index", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/n-documents/rag-query", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/n-documents/project-control-snapshot", status: "active", gate: "none" },
+  { method: "POST", path: "/api/v1/n-documents/evidence-grounding", status: "active", gate: "none" },
+  { method: "POST", path: "/api/v1/n-documents/project-memory-snapshot", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/roadmap/track-change-preview", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/roadmap/procedure-diary", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/roadmap/stage-readiness-matrix", status: "active", gate: "none" },

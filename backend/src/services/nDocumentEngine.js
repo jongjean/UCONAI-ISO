@@ -80,6 +80,58 @@ const riskTerms = [
 const scheduleTerms = ["date", "deadline", "meeting", "plenary", "ballot", "circulation", "agenda", "\uc77c\uc815", "\ud68c\uc758", "\ucd1d\ud68c"];
 const referenceTerms = ["reference", "bibliography", "directive", "source", "iec", "iso", "jtc", "\ucc38\uace0", "\uadfc\uac70"];
 
+const isoProcedureKnowledge = [
+  {
+    id: "iso-stage-pwi",
+    fileName: "ISO procedure knowledge pack",
+    stage: "PWI",
+    eventType: "reference",
+    text: "PWI is the preliminary work item position. Evidence should show project need, committee fit, early meeting records, scope outline and likely stakeholder value before moving toward a new proposal."
+  },
+  {
+    id: "iso-stage-np",
+    fileName: "ISO procedure knowledge pack",
+    stage: "NP",
+    eventType: "reference",
+    text: "NP is the new proposal position. Evidence should include proposal form readiness, supporter evidence, committee decision timing, deliverable type and an initial development track."
+  },
+  {
+    id: "iso-stage-wd",
+    fileName: "ISO procedure knowledge pack",
+    stage: "WD",
+    eventType: "reference",
+    text: "WD is the working draft position. The project should maintain draft text, editor action log, reference candidates, term candidates, figure sources and working group comment handling."
+  },
+  {
+    id: "iso-stage-cd",
+    fileName: "ISO procedure knowledge pack",
+    stage: "CD",
+    eventType: "reference",
+    text: "CD is the committee draft position. Committee consultation, comment disposition, terminology stability, reference readiness and meeting records become stronger control signals."
+  },
+  {
+    id: "iso-stage-dis",
+    fileName: "ISO procedure knowledge pack",
+    stage: "DIS",
+    eventType: "reference",
+    text: "DIS is the draft international standard enquiry position. The project should control enquiry package readiness, comment resolution, source version binding, references and formal wording risk."
+  },
+  {
+    id: "iso-stage-fdis",
+    fileName: "ISO procedure knowledge pack",
+    stage: "FDIS",
+    eventType: "reference",
+    text: "FDIS is the final draft position. Final package evidence, remaining comments, figure source package, reference closure, OSD companion material and publication handoff must be checked."
+  },
+  {
+    id: "iso-stage-publish",
+    fileName: "ISO procedure knowledge pack",
+    stage: "Publish",
+    eventType: "reference",
+    text: "Publish is the release position. Publication notice, archive package, source version map and final project history should remain reopenable."
+  }
+];
+
 function normalizeText(value = "") {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
@@ -209,6 +261,7 @@ export function analyzeNDocument(input = {}) {
 
 export function buildKnowledgeIndex(input = {}) {
   const documents = Array.isArray(input.nDocuments) ? input.nDocuments : [];
+  const includeProcedureKnowledge = input.includeProcedureKnowledge !== false;
   const chunks = documents.flatMap((documentRecord) => {
     if (Array.isArray(documentRecord.chunks) && documentRecord.chunks.length > 0) {
       return documentRecord.chunks.map((chunk) => ({ ...chunk, documentId: documentRecord.id, stage: documentRecord.stage, eventType: documentRecord.eventType }));
@@ -218,19 +271,28 @@ export function buildKnowledgeIndex(input = {}) {
       contentText: documentRecord.contentPreview || documentRecord.summary || ""
     }).map((chunk) => ({ ...chunk, documentId: documentRecord.id, stage: documentRecord.stage, eventType: documentRecord.eventType }));
   });
-  const keywords = extractKeywords(chunks.map((chunk) => chunk.text).join(" "));
+  const procedureChunks = includeProcedureKnowledge ? isoProcedureKnowledge.map((item) => ({
+    ...item,
+    documentId: item.id,
+    keywords: extractKeywords(item.text),
+    stageHints: [item.stage],
+    eventHints: ["reference"]
+  })) : [];
+  const allChunks = [...chunks, ...procedureChunks];
+  const keywords = extractKeywords(allChunks.map((chunk) => chunk.text).join(" "));
   return {
     documentCount: documents.length,
-    chunkCount: chunks.length,
+    chunkCount: allChunks.length,
     keywords,
-    chunks: chunks.slice(0, 80),
+    chunks: allChunks.slice(0, 100),
     sourceMap: documents.map((documentRecord) => ({
       id: documentRecord.id,
       fileName: documentRecord.fileName,
       stage: documentRecord.stage,
       eventType: documentRecord.eventType,
       summary: documentRecord.summary
-    }))
+    })),
+    procedureKnowledgeCount: procedureChunks.length
   };
 }
 
@@ -255,6 +317,79 @@ export function queryKnowledgeIndex(input = {}) {
       eventType: result.eventType,
       excerpt: result.text.slice(0, 360)
     }))
+  };
+}
+
+export function buildEvidenceGrounding(input = {}) {
+  const query = normalizeText(input.query || input.prompt || "");
+  const grounding = queryKnowledgeIndex({
+    query,
+    nDocuments: input.nDocuments,
+    includeProcedureKnowledge: true
+  });
+  const sourceDocuments = Array.isArray(input.nDocuments) ? input.nDocuments : [];
+  return {
+    query,
+    sourceCount: sourceDocuments.length,
+    grounded: grounding.answerBasis.length > 0,
+    answerBasis: grounding.answerBasis,
+    requiredResponseContract: [
+      "Answer the user question first.",
+      "Name the source file or ISO procedure basis when a concrete claim is made.",
+      "Separate confirmed evidence from suggested next action.",
+      "Update stage, action, risk or schedule only when there is source evidence."
+    ]
+  };
+}
+
+export function buildProjectMemorySnapshot(input = {}) {
+  const standardSetup = input.standardSetup || {};
+  const projectDraft = input.projectDraft || {};
+  const documents = Array.isArray(input.nDocuments) ? input.nDocuments : [];
+  const fieldChangeLog = Array.isArray(input.fieldChangeLog) ? input.fieldChangeLog : [];
+  const decisions = Array.isArray(input.decisions) ? input.decisions : [];
+  const stageAssessment = buildStageAssessment({
+    currentStage: input.currentStage || standardSetup.currentStage || projectDraft.stage,
+    nDocuments: documents
+  });
+  const setupFields = Object.entries(standardSetup).map(([key, value]) => ({
+    key,
+    value: normalizeText(value).slice(0, 500),
+    filled: Boolean(normalizeText(value)) && normalizeText(value) !== "undecided"
+  }));
+  const filledCount = setupFields.filter((field) => field.filled).length;
+  const snapshotId = crypto.createHash("sha256").update(JSON.stringify({
+    standardSetup,
+    projectDraft,
+    documents: documents.map((item) => [item.id, item.fileName, item.stage]),
+    fieldChangeLog: fieldChangeLog.slice(-20),
+    decisions: decisions.slice(-20)
+  })).digest("hex").slice(0, 16);
+
+  return {
+    id: `project-memory-${snapshotId}`,
+    createdAt: new Date().toISOString(),
+    setupCompletion: setupFields.length === 0 ? 0 : Math.round((filledCount / setupFields.length) * 100),
+    stageAssessment,
+    fieldLedger: {
+      totalFields: setupFields.length,
+      filledFields: filledCount,
+      emptyFields: setupFields.filter((field) => !field.filled).map((field) => field.key).slice(0, 20),
+      recentChanges: fieldChangeLog.slice(-12).reverse()
+    },
+    evidenceLedger: documents.slice(0, 20).map((documentRecord) => ({
+      id: documentRecord.id,
+      fileName: documentRecord.fileName,
+      stage: documentRecord.stage,
+      eventType: documentRecord.eventType,
+      summary: documentRecord.summary
+    })),
+    decisionLedger: decisions.slice(-12).reverse(),
+    restoreContract: {
+      recoverable: true,
+      restoreTargets: ["standardSetup", "projectDraft", "documentSections", "nDocuments", "fieldChangeLog", "decisionLedger"],
+      note: "The browser workspace stores each wizard state as a restorable snapshot until DB-backed history is enabled."
+    }
   };
 }
 

@@ -19,6 +19,8 @@
 } from "lucide-react";
 import {
   analyzeNDocument,
+  buildEvidenceGrounding,
+  buildProjectMemorySnapshot,
   buildProjectControlSnapshot,
   buildStageAssessment as requestStageAssessment,
   probeIsoApi,
@@ -167,6 +169,50 @@ type ProjectControlSnapshot = {
   commanderBrief: string[];
 };
 
+type EvidenceGrounding = {
+  query: string;
+  sourceCount: number;
+  grounded: boolean;
+  answerBasis: Array<{ fileName: string; stage: string; eventType: string; excerpt: string }>;
+  requiredResponseContract: string[];
+};
+
+type FieldChangeLogEntry = {
+  id: string;
+  field: string;
+  previousValue: string;
+  nextValue: string;
+  changedAt: string;
+  source: "wizard" | "ai" | "import";
+};
+
+type AiDecisionEntry = {
+  id: string;
+  question: string;
+  answer: string;
+  createdAt: string;
+  basisCount: number;
+};
+
+type ProjectMemorySnapshot = {
+  id: string;
+  createdAt: string;
+  setupCompletion: number;
+  fieldLedger: {
+    totalFields: number;
+    filledFields: number;
+    emptyFields: string[];
+    recentChanges: FieldChangeLogEntry[];
+  };
+  evidenceLedger: Array<{ id: string; fileName: string; stage: string; eventType: string; summary: string }>;
+  decisionLedger: AiDecisionEntry[];
+  restoreContract: {
+    recoverable: boolean;
+    restoreTargets: string[];
+    note: string;
+  };
+};
+
 type WizardHistoryEntry = {
   id: string;
   label: string;
@@ -195,6 +241,10 @@ type WorkspaceSaveState = {
   nDocuments?: NDocumentRecord[];
   projectControlSnapshot?: ProjectControlSnapshot;
   wizardHistory?: WizardHistoryEntry[];
+  evidenceGrounding?: EvidenceGrounding;
+  fieldChangeLog?: FieldChangeLogEntry[];
+  aiDecisionLedger?: AiDecisionEntry[];
+  projectMemorySnapshot?: ProjectMemorySnapshot;
   isWizardPageOpen?: boolean;
 };
 
@@ -413,6 +463,37 @@ const defaultProjectControlSnapshot: ProjectControlSnapshot = {
   commanderBrief: ["Project control snapshot is waiting for N-document evidence."]
 };
 
+const defaultEvidenceGrounding: EvidenceGrounding = {
+  query: "",
+  sourceCount: 0,
+  grounded: false,
+  answerBasis: [],
+  requiredResponseContract: [
+    "Answer the user question first.",
+    "Name the source file or ISO procedure basis when a concrete claim is made.",
+    "Separate confirmed evidence from suggested next action."
+  ]
+};
+
+const defaultProjectMemorySnapshot: ProjectMemorySnapshot = {
+  id: "project-memory-empty",
+  createdAt: "Not captured yet",
+  setupCompletion: 0,
+  fieldLedger: {
+    totalFields: 0,
+    filledFields: 0,
+    emptyFields: [],
+    recentChanges: []
+  },
+  evidenceLedger: [],
+  decisionLedger: [],
+  restoreContract: {
+    recoverable: true,
+    restoreTargets: ["standardSetup", "projectDraft", "documentSections"],
+    note: "Wizard history is waiting for the first editable change."
+  }
+};
+
 const nDocumentEventLabels: Record<NDocumentEventType, string> = {
   presentation: "Presentation",
   decision: "Decision",
@@ -511,6 +592,10 @@ export function App() {
   const [stageEngineMessage, setStageEngineMessage] = useState("Stage engine is waiting for source evidence.");
   const [projectControlSnapshot, setProjectControlSnapshot] = useState<ProjectControlSnapshot>(savedWorkspace.projectControlSnapshot || defaultProjectControlSnapshot);
   const [wizardHistory, setWizardHistory] = useState<WizardHistoryEntry[]>(savedWorkspace.wizardHistory || []);
+  const [evidenceGrounding, setEvidenceGrounding] = useState<EvidenceGrounding>(savedWorkspace.evidenceGrounding || defaultEvidenceGrounding);
+  const [fieldChangeLog, setFieldChangeLog] = useState<FieldChangeLogEntry[]>(savedWorkspace.fieldChangeLog || []);
+  const [aiDecisionLedger, setAiDecisionLedger] = useState<AiDecisionEntry[]>(savedWorkspace.aiDecisionLedger || []);
+  const [projectMemorySnapshot, setProjectMemorySnapshot] = useState<ProjectMemorySnapshot>(savedWorkspace.projectMemorySnapshot || defaultProjectMemorySnapshot);
   const [isWizardPageOpen, setIsWizardPageOpen] = useState(savedWorkspace.isWizardPageOpen || false);
   const [activeModuleKey, setActiveModuleKey] = useState<keyof OperationalModules>("roadmapEvents");
   const [moduleJson, setModuleJson] = useState(JSON.stringify((savedWorkspace.operationalModules || defaultOperationalModules).roadmapEvents, null, 2));
@@ -659,6 +744,10 @@ export function App() {
       nDocuments,
       projectControlSnapshot,
       wizardHistory,
+      evidenceGrounding,
+      fieldChangeLog,
+      aiDecisionLedger,
+      projectMemorySnapshot,
       isWizardPageOpen
     };
     if (typeof window !== "undefined") {
@@ -683,10 +772,54 @@ export function App() {
     nDocuments,
     projectControlSnapshot,
     wizardHistory,
+    evidenceGrounding,
+    fieldChangeLog,
+    aiDecisionLedger,
+    projectMemorySnapshot,
     isWizardPageOpen,
     selectedChapterId,
     selectedClauseId
   ]);
+
+  useEffect(() => {
+    let active = true;
+    buildProjectMemorySnapshot({
+      currentStage: standardSetup.currentStage || editableProjectDraft.stage || "PWI",
+      standardSetup,
+      projectDraft: editableProjectDraft,
+      nDocuments,
+      fieldChangeLog,
+      decisions: aiDecisionLedger
+    }).then((snapshot) => {
+      if (active) setProjectMemorySnapshot(snapshot as ProjectMemorySnapshot);
+    }).catch(() => {
+      const setupValues = Object.values(standardSetup);
+      const filledFields = setupValues.filter((value) => value && value !== "undecided").length;
+      if (active) {
+        setProjectMemorySnapshot({
+          ...defaultProjectMemorySnapshot,
+          setupCompletion: setupValues.length === 0 ? 0 : Math.round((filledFields / setupValues.length) * 100),
+          fieldLedger: {
+            totalFields: setupValues.length,
+            filledFields,
+            emptyFields: Object.entries(standardSetup).filter(([, value]) => !value || value === "undecided").map(([key]) => key).slice(0, 20),
+            recentChanges: fieldChangeLog.slice(-12).reverse()
+          },
+          evidenceLedger: nDocuments.slice(0, 20).map((documentRecord) => ({
+            id: documentRecord.id,
+            fileName: documentRecord.fileName,
+            stage: documentRecord.stage,
+            eventType: documentRecord.eventType,
+            summary: documentRecord.summary
+          })),
+          decisionLedger: aiDecisionLedger.slice(-12).reverse()
+        });
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [aiDecisionLedger, editableProjectDraft, fieldChangeLog, nDocuments, standardSetup]);
 
   const selectedChapter = chapterBlocks.find((block) => block.id === selectedChapterId) || chapterBlocks[0] || chapterWorkspaceBlocks[0];
 
@@ -824,15 +957,33 @@ export function App() {
 
   function updateProjectDraft(key: keyof ProjectDraft, value: string) {
     pushWizardHistory(`Before project ${key} change`);
+    const previousValue = String(editableProjectDraft[key] || "");
     setEditableProjectDraft((current) => ({ ...current, [key]: value }));
     setEditableDocumentSections((current) => syncDocumentSectionsFromFields(current, standardSetup, { ...editableProjectDraft, [key]: value }));
+    setFieldChangeLog((current) => [...current, {
+      id: `field-change-${Date.now()}`,
+      field: `projectDraft.${String(key)}`,
+      previousValue,
+      nextValue: value,
+      changedAt: new Date().toLocaleString(),
+      source: "wizard" as const
+    }].slice(-80));
   }
 
   function updateStandardSetup(key: keyof StandardSetup, value: string, status: FieldMeta["status"] = "unverified") {
     pushWizardHistory(`Before ${key} change`);
+    const previousValue = String(standardSetup[key] || "");
     const nextSetup = { ...standardSetup, [key]: value };
     setStandardSetup((current) => ({ ...current, [key]: value }));
     setEditableDocumentSections((current) => syncDocumentSectionsFromFields(current, nextSetup, editableProjectDraft));
+    setFieldChangeLog((current) => [...current, {
+      id: `field-change-${Date.now()}`,
+      field: String(key),
+      previousValue,
+      nextValue: value,
+      changedAt: new Date().toLocaleString(),
+      source: "wizard" as const
+    }].slice(-80));
     setFieldMeta((current) => ({
       ...current,
       [key]: {
@@ -866,6 +1017,14 @@ export function App() {
     setStandardSetup(entry.standardSetup);
     setEditableProjectDraft(entry.projectDraft);
     setEditableDocumentSections(entry.documentSections);
+    setFieldChangeLog((current) => [...current, {
+      id: `field-change-${Date.now()}`,
+      field: "wizard.restore",
+      previousValue: "current workspace state",
+      nextValue: entry.label,
+      changedAt: new Date().toLocaleString(),
+      source: "import" as const
+    }].slice(-80));
     setWorkspaceMessage(`Restored wizard version: ${entry.label}`);
   }
 
@@ -1007,6 +1166,8 @@ export function App() {
       let knowledgeBasis: unknown = null;
       try {
         knowledgeBasis = await queryNDocumentKnowledge({ query: prompt, nDocuments });
+        const grounding = await buildEvidenceGrounding({ query: prompt, nDocuments });
+        setEvidenceGrounding(grounding);
       } catch {
         knowledgeBasis = null;
       }
@@ -1020,7 +1181,9 @@ export function App() {
           projectDraft: editableProjectDraft,
           nDocuments,
           projectControlSnapshot,
-          knowledgeBasis
+          knowledgeBasis,
+          fieldChangeLog,
+          decisions: aiDecisionLedger
         }
       });
       const agentMessage: SuperAgentMessage = {
@@ -1029,6 +1192,15 @@ export function App() {
         text: result.text
       };
       setSuperAgentMessages((current) => [...current, agentMessage].slice(-12));
+      if (result.grounding) setEvidenceGrounding(result.grounding as EvidenceGrounding);
+      if (result.projectMemory) setProjectMemorySnapshot(result.projectMemory as ProjectMemorySnapshot);
+      setAiDecisionLedger((current) => [...current, {
+        id: `ai-decision-${Date.now()}`,
+        question: prompt,
+        answer: result.text,
+        createdAt: new Date().toLocaleString(),
+        basisCount: result.grounding?.answerBasis?.length || 0
+      }].slice(-80));
       setWorkspaceMessage(`AI Commander answered through ${result.provider}/${result.model}.`);
     } catch {
       const agentMessage: SuperAgentMessage = {
@@ -1225,12 +1397,39 @@ export function App() {
         commanderBrief: ["Project control snapshot is using browser fallback until the API is connected."]
       });
     }
+    try {
+      const grounding = await buildEvidenceGrounding({
+        query: records[0]?.summary || "latest N-document evidence",
+        nDocuments: [...records, ...nDocuments]
+      });
+      setEvidenceGrounding(grounding);
+    } catch {
+      setEvidenceGrounding({
+        ...defaultEvidenceGrounding,
+        query: records[0]?.summary || "latest N-document evidence",
+        sourceCount: records.length + nDocuments.length,
+        grounded: records.length > 0,
+        answerBasis: records.slice(0, 4).map((record) => ({
+          fileName: record.fileName,
+          stage: record.stage,
+          eventType: record.eventType,
+          excerpt: record.contentPreview.slice(0, 360)
+        }))
+      });
+    }
     const agentMessage: SuperAgentMessage = {
       id: `n-doc-agent-${Date.now()}`,
       speaker: "super-agent",
       text: `${records.length} N-document event file(s) registered. I marked event evidence on the progress line, updated current stage from the newest source, and prepared the AI Commander context.`
     };
     setSuperAgentMessages((current) => [...current, agentMessage].slice(-12));
+    setAiDecisionLedger((current) => [...current, {
+      id: `ai-decision-${Date.now()}`,
+      question: "N-document upload processing",
+      answer: agentMessage.text,
+      createdAt: new Date().toLocaleString(),
+      basisCount: records.length
+    }].slice(-80));
     setWorkspaceMessage(`${records.length} N-document event file(s) uploaded and classified.`);
   }
 
@@ -1273,7 +1472,17 @@ export function App() {
       operationalModules,
       standardSetup,
       fieldMeta,
-      activeWizardStep
+      activeWizardStep,
+      regulationAnalysis,
+      superAgentMessages,
+      nDocuments,
+      projectControlSnapshot,
+      wizardHistory,
+      evidenceGrounding,
+      fieldChangeLog,
+      aiDecisionLedger,
+      projectMemorySnapshot,
+      isWizardPageOpen
     };
     setWorkspaceJson(JSON.stringify(payload, null, 2));
     setWorkspaceMessage("Workspace JSON exported below.");
@@ -1302,6 +1511,11 @@ export function App() {
         setOpenNDocumentId(parsed.nDocuments[0]?.id || null);
       }
       if (parsed.wizardHistory) setWizardHistory(parsed.wizardHistory);
+      if (parsed.projectControlSnapshot) setProjectControlSnapshot(parsed.projectControlSnapshot);
+      if (parsed.evidenceGrounding) setEvidenceGrounding(parsed.evidenceGrounding);
+      if (parsed.fieldChangeLog) setFieldChangeLog(parsed.fieldChangeLog);
+      if (parsed.aiDecisionLedger) setAiDecisionLedger(parsed.aiDecisionLedger);
+      if (parsed.projectMemorySnapshot) setProjectMemorySnapshot(parsed.projectMemorySnapshot);
       if (typeof parsed.isWizardPageOpen === "boolean") setIsWizardPageOpen(parsed.isWizardPageOpen);
       setWorkspaceMessage("Workspace JSON imported.");
     } catch {
@@ -1329,6 +1543,11 @@ export function App() {
     setNDocuments([]);
     setOpenNDocumentId(null);
     setWizardHistory([]);
+    setProjectControlSnapshot(defaultProjectControlSnapshot);
+    setEvidenceGrounding(defaultEvidenceGrounding);
+    setFieldChangeLog([]);
+    setAiDecisionLedger([]);
+    setProjectMemorySnapshot(defaultProjectMemorySnapshot);
     setIsWizardPageOpen(false);
     setActiveModuleKey("roadmapEvents");
     setModuleJson(JSON.stringify(defaultOperationalModules.roadmapEvents, null, 2));
@@ -1678,6 +1897,39 @@ export function App() {
               </article>
             </div>
           </div>
+          <div className="project-control-snapshot-panel">
+            <div className="regulation-analysis-head">
+              <div>
+                <span>AI evidence grounding</span>
+                <strong>{evidenceGrounding.grounded ? "Grounded answer mode" : "Procedure knowledge standby"}</strong>
+                <p>AI Commander uses uploaded N-doc chunks plus the ISO procedure knowledge pack before general advice.</p>
+              </div>
+            </div>
+            <div className="analysis-status-grid">
+              <article>
+                <span>Source basis</span>
+                <strong>{evidenceGrounding.sourceCount} uploaded source(s)</strong>
+                <em>{evidenceGrounding.answerBasis.length} basis excerpt(s)</em>
+              </article>
+              <article>
+                <span>Latest basis excerpts</span>
+                <ul>
+                  {evidenceGrounding.answerBasis.slice(0, 4).map((basis) => (
+                    <li key={`${basis.fileName}-${basis.excerpt}`}>{basis.fileName}: {basis.excerpt}</li>
+                  ))}
+                  {evidenceGrounding.answerBasis.length === 0 && <li>Ask AI Commander or upload an N-document to build a source basis.</li>}
+                </ul>
+              </article>
+              <article>
+                <span>Project memory</span>
+                <ul>
+                  <li>{projectMemorySnapshot.setupCompletion}% setup field completion</li>
+                  <li>{projectMemorySnapshot.fieldLedger.recentChanges.length} recent field change(s)</li>
+                  <li>{projectMemorySnapshot.decisionLedger.length} AI decision record(s)</li>
+                </ul>
+              </article>
+            </div>
+          </div>
         </section>
 
         <section className={`panel api-probe-panel ${apiProbe.status}`}>
@@ -1853,6 +2105,42 @@ export function App() {
                 ))}
               </div>
             </div>
+          </div>
+          <div className="project-memory-panel">
+            <div className="linked-document-head">
+              <span>Project memory and recovery ledger</span>
+              <strong>{projectMemorySnapshot.setupCompletion}% setup completion / {projectMemorySnapshot.evidenceLedger.length} evidence record(s)</strong>
+            </div>
+            <div className="memory-grid">
+              <article>
+                <span>Recent field changes</span>
+                <ul>
+                  {projectMemorySnapshot.fieldLedger.recentChanges.slice(0, 6).map((entry) => (
+                    <li key={entry.id}>{entry.field}: {entry.previousValue || "empty"} {"->"} {entry.nextValue || "empty"}</li>
+                  ))}
+                  {projectMemorySnapshot.fieldLedger.recentChanges.length === 0 && <li>No editable field changes captured yet.</li>}
+                </ul>
+              </article>
+              <article>
+                <span>Evidence ledger</span>
+                <ul>
+                  {projectMemorySnapshot.evidenceLedger.slice(0, 6).map((entry) => (
+                    <li key={entry.id}>{entry.fileName} / {entry.stage} / {entry.eventType}</li>
+                  ))}
+                  {projectMemorySnapshot.evidenceLedger.length === 0 && <li>No N-document evidence registered yet.</li>}
+                </ul>
+              </article>
+              <article>
+                <span>AI decision ledger</span>
+                <ul>
+                  {projectMemorySnapshot.decisionLedger.slice(0, 6).map((entry) => (
+                    <li key={entry.id}>{entry.question} / {entry.basisCount} basis excerpt(s)</li>
+                  ))}
+                  {projectMemorySnapshot.decisionLedger.length === 0 && <li>No AI Commander decision captured yet.</li>}
+                </ul>
+              </article>
+            </div>
+            <p>{projectMemorySnapshot.restoreContract.note}</p>
           </div>
           <div className="wizard-layout">
             <div className="wizard-step-list">

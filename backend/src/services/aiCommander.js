@@ -1,6 +1,6 @@
 import { config } from "../config.js";
 import { ApiError } from "../http/errors.js";
-import { buildProjectControlSnapshot, buildStageAssessment } from "./nDocumentEngine.js";
+import { buildEvidenceGrounding, buildProjectControlSnapshot, buildProjectMemorySnapshot, buildStageAssessment } from "./nDocumentEngine.js";
 
 const hasKorean = (value = "") => [...String(value)].some((character) => {
   const code = character.charCodeAt(0);
@@ -21,6 +21,23 @@ function compactContext(context = {}) {
     currentStage: context.currentStage,
     nDocuments
   });
+  const grounding = context.knowledgeBasis?.answerBasis
+    ? {
+      grounded: context.knowledgeBasis.answerBasis.length > 0,
+      answerBasis: context.knowledgeBasis.answerBasis.slice(0, 6)
+    }
+    : buildEvidenceGrounding({
+      query: context.userQuestion || "",
+      nDocuments
+    });
+  const projectMemory = buildProjectMemorySnapshot({
+    currentStage: context.currentStage,
+    standardSetup: context.standardSetup,
+    projectDraft: context.projectDraft,
+    nDocuments,
+    fieldChangeLog: context.fieldChangeLog,
+    decisions: context.decisions
+  });
   return {
     currentStage: context.currentStage || "PWI",
     detectedStage: context.regulationAnalysis?.detectedStage || "unknown",
@@ -37,6 +54,8 @@ function compactContext(context = {}) {
     realTimeStatusMemo: context.standardSetup?.realTimeStatusMemo || "",
     advancedInfoMemo: context.standardSetup?.advancedInfoMemo || "",
     evidenceMemo: context.standardSetup?.evidenceMemo || "",
+    grounding,
+    projectMemory,
     nDocuments: nDocuments.map((documentRecord) => ({
       fileName: documentRecord.fileName,
       eventType: documentRecord.eventType,
@@ -66,6 +85,8 @@ export async function runAiCommander({ prompt = "", messages = [], context = {} 
     "Give concrete product guidance tied to the current screen and project state.",
     "Separate confirmed facts from suggested actions. Never claim a stage is final without source evidence in the context.",
     "If uploaded N-documents exist, use their filenames, event types, stage markers and summaries before giving general ISO advice.",
+    "Use evidence grounding from the context. When possible, include a short Basis line with the filename or ISO procedure basis.",
+    "Use project memory from the context. Treat wizard fields, recent field changes and previous decisions as the live project state.",
     "When evidence is missing, ask for the smallest useful next upload or field update.",
     "Do not repeat a generic template. Answer the user's actual question first.",
     "When mentioning source uploads, point to Start Wizard > N-document event registry > Upload N-documents.",
@@ -86,7 +107,7 @@ export async function runAiCommander({ prompt = "", messages = [], context = {} 
       stream: false,
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "system", content: `Current workspace context: ${JSON.stringify(compactContext(context))}` },
+        { role: "system", content: `Current workspace context: ${JSON.stringify(compactContext({ ...context, userQuestion: trimmedPrompt }))}` },
         ...recentMessages,
         { role: "user", content: trimmedPrompt }
       ],
@@ -119,6 +140,18 @@ export async function runAiCommander({ prompt = "", messages = [], context = {} 
   return {
     provider: "ollama",
     model: config.ai.ollamaModel,
-    text: text.trim()
+    text: text.trim(),
+    grounding: buildEvidenceGrounding({
+      query: trimmedPrompt,
+      nDocuments: Array.isArray(context.nDocuments) ? context.nDocuments : []
+    }),
+    projectMemory: buildProjectMemorySnapshot({
+      currentStage: context.currentStage,
+      standardSetup: context.standardSetup,
+      projectDraft: context.projectDraft,
+      nDocuments: Array.isArray(context.nDocuments) ? context.nDocuments : [],
+      fieldChangeLog: context.fieldChangeLog,
+      decisions: context.decisions
+    })
   };
 }

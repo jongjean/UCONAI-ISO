@@ -26,6 +26,8 @@ export type AiCommanderResponse = {
   provider: string;
   model: string;
   text: string;
+  grounding?: EvidenceGroundingResponse;
+  projectMemory?: ProjectMemorySnapshotResponse;
 };
 
 export type NDocumentAnalysisResponse = {
@@ -77,6 +79,34 @@ export type ProjectControlSnapshotResponse = {
   referenceSignals: string[];
   dates: string[];
   commanderBrief: string[];
+};
+
+export type EvidenceGroundingResponse = {
+  query: string;
+  sourceCount: number;
+  grounded: boolean;
+  answerBasis: Array<{ fileName: string; stage: string; eventType: string; excerpt: string }>;
+  requiredResponseContract: string[];
+};
+
+export type ProjectMemorySnapshotResponse = {
+  id: string;
+  createdAt: string;
+  setupCompletion: number;
+  stageAssessment: StageAssessmentResponse;
+  fieldLedger: {
+    totalFields: number;
+    filledFields: number;
+    emptyFields: string[];
+    recentChanges: Array<{ id: string; field: string; previousValue: string; nextValue: string; changedAt: string; source: "wizard" | "ai" | "import" }>;
+  };
+  evidenceLedger: Array<{ id: string; fileName: string; stage: string; eventType: string; summary: string }>;
+  decisionLedger: Array<{ id: string; question: string; answer: string; createdAt: string; basisCount: number }>;
+  restoreContract: {
+    recoverable: boolean;
+    restoreTargets: string[];
+    note: string;
+  };
 };
 
 function timeoutSignal(milliseconds: number) {
@@ -164,6 +194,36 @@ export async function queryNDocumentKnowledge(request: {
     body: JSON.stringify(request)
   }, 8000);
   return payload.data;
+}
+
+export async function buildEvidenceGrounding(request: {
+  query: string;
+  nDocuments: object[];
+}): Promise<EvidenceGroundingResponse> {
+  const baseUrl = (import.meta.env.VITE_ISO_API_BASE_URL || "/iso/api/v1").replace(/\/$/, "");
+  const payload = await fetchJson(`${baseUrl}/n-documents/evidence-grounding`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request)
+  }, 8000);
+  return payload.data as EvidenceGroundingResponse;
+}
+
+export async function buildProjectMemorySnapshot(request: {
+  currentStage: string;
+  standardSetup: object;
+  projectDraft: object;
+  nDocuments: object[];
+  fieldChangeLog: object[];
+  decisions: object[];
+}): Promise<ProjectMemorySnapshotResponse> {
+  const baseUrl = (import.meta.env.VITE_ISO_API_BASE_URL || "/iso/api/v1").replace(/\/$/, "");
+  const payload = await fetchJson(`${baseUrl}/n-documents/project-memory-snapshot`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request)
+  }, 8000);
+  return payload.data as ProjectMemorySnapshotResponse;
 }
 
 export async function probeIsoApi(): Promise<ApiProbeState> {
