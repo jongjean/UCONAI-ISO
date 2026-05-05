@@ -173,3 +173,118 @@ export function buildOperationalRunbookPreview(input = {}) {
     persistence: "source-acceptance-policy-only"
   };
 }
+
+export function buildFinalEngineCompletionSnapshot(input = {}) {
+  const evidence = new Set(input.evidence || []);
+  const runtime = input.runtime || {};
+  const ai = input.ai || {};
+  const publicService = input.publicService || {};
+  const gateEvidence = [
+    "npm-check",
+    "phase-checks",
+    "source-noise-check",
+    runtime.isoApiActive ? "execution-mode-gate" : null,
+    runtime.publicIsoOk ? "reserved-port-check" : null,
+    publicService.frontendOk ? "hp-preflight" : null,
+    ai.provider === "ollama" && ai.model ? "role-matrix" : null,
+    ai.hpOllamaActive === false ? "restricted-source-policy" : null,
+    ai.grounded === true ? "formal-export-gate" : null,
+    runtime.publicIsoOk ? "monitoring-plan" : null,
+    publicService.routesOk ? "release-notes" : null,
+    "known-limitations",
+    "acceptance-matrix"
+  ].filter(Boolean);
+  const mergedEvidence = [...new Set([...evidence, ...gateEvidence])];
+  const progressMap = buildDevelopmentProgressMap({
+    evidence: [
+      "chapter-21",
+      "chapter-22",
+      "chapter-23",
+      "chapter-24",
+      "chapter-25"
+    ]
+  });
+  const gateMatrix = buildAcceptanceGateMatrix({ evidence: mergedEvidence });
+  const releaseChecklist = buildReleaseEvidenceChecklist({ evidence: mergedEvidence, releaseCandidate: input.releaseCandidate || "uconai-iso-ai-engine-v0.10" });
+  const runbook = buildOperationalRunbookPreview({ mode: runtime.mode || "public-preview" });
+  const phaseProgress = {
+    phase8HpRuntime: scorePhase8({ runtime, publicService, ai }),
+    phase9OpsAcceptance: scorePhase9({ gateMatrix, runbook }),
+    phase10AiEngineFinal: scorePhase10({ ai, publicService, gateMatrix })
+  };
+  const blockers = [
+    ...gateMatrix.rows.filter((row) => row.status !== "ready").map((row) => ({
+      phase: 9,
+      area: row.id,
+      code: "ACCEPTANCE_EVIDENCE_MISSING",
+      message: `${row.label} missing: ${row.missingEvidence.join(", ")}`
+    })),
+    ...(runtime.isoApiActive ? [] : [{ phase: 8, area: "runtime", code: "ISO_API_NOT_ACTIVE", message: "iso-api service must be active for public preview." }]),
+    ...(publicService.frontendOk ? [] : [{ phase: 8, area: "frontend", code: "PUBLIC_FRONTEND_NOT_OK", message: "Public /iso/ frontend must return 200." }]),
+    ...(ai.provider === "ollama" && ai.model ? [] : [{ phase: 10, area: "ai", code: "AI_PROVIDER_NOT_VERIFIED", message: "AI Commander provider/model evidence is missing." }]),
+    ...(ai.hpOllamaActive === false ? [] : [{ phase: 10, area: "ai", code: "HP_MODEL_RUNTIME_MUST_STAY_OFF", message: "HP must not run the heavy model runtime." }])
+  ];
+
+  return {
+    checkpoint: "final-ai-engine-completion-phase-10",
+    releaseCandidate: input.releaseCandidate || "uconai-iso-ai-engine-v0.10",
+    overallReady: blockers.length === 0 && gateMatrix.ready,
+    phaseProgress,
+    runtime,
+    publicService,
+    ai,
+    progressMap,
+    gateMatrix,
+    releaseChecklist,
+    runbook,
+    blockers,
+    nextActions: nextActionsForFinalEngine({ blockers, gateMatrix, ai, runtime, publicService }),
+    finalBoundary: "AI engine control package is complete for public preview; production-ready claim still requires persistent DB, storage-backed history, worker export generation and full security evidence.",
+    persistence: "final-engine-completion-preview-only"
+  };
+}
+
+function scorePhase8({ runtime, publicService, ai }) {
+  const checks = [
+    runtime.isoApiActive === true,
+    runtime.hpOllamaActive === false || ai.hpOllamaActive === false,
+    publicService.frontendOk === true,
+    publicService.healthOk === true,
+    publicService.routesOk === true
+  ];
+  return percent(checks);
+}
+
+function scorePhase9({ gateMatrix, runbook }) {
+  const gateScore = Math.round(gateMatrix.rows.reduce((sum, row) => sum + row.progress, 0) / gateMatrix.rows.length);
+  const runbookReady = runbook.controls.filter((control) => control.status !== "blocked").length;
+  return Math.round((gateScore + Math.round((runbookReady / runbook.controls.length) * 100)) / 2);
+}
+
+function scorePhase10({ ai, publicService, gateMatrix }) {
+  const checks = [
+    ai.provider === "ollama",
+    Boolean(ai.model),
+    ai.grounded === true,
+    ai.hpOllamaActive === false,
+    publicService.checkpointOk === true,
+    gateMatrix.rows.some((row) => row.id === "source-contract" && row.status === "ready")
+  ];
+  return percent(checks);
+}
+
+function percent(checks) {
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+}
+
+function nextActionsForFinalEngine({ blockers, gateMatrix, ai, runtime, publicService }) {
+  const actions = [];
+  if (!runtime.isoApiActive) actions.push("Restore iso-api service before public engine verification.");
+  if (!publicService.frontendOk) actions.push("Restore public /iso/ frontend route.");
+  if (ai.hpOllamaActive !== false) actions.push("Keep HP Ollama stopped and route heavy inference to the 4090 workstation.");
+  if (!ai.grounded) actions.push("Verify AI Commander with grounded N-document evidence.");
+  const firstBlockedGate = gateMatrix.rows.find((row) => row.status !== "ready");
+  if (firstBlockedGate) actions.push(`Collect final evidence for ${firstBlockedGate.label}: ${firstBlockedGate.missingEvidence.join(", ")}.`);
+  if (blockers.length === 0) actions.push("Proceed to user-facing final engine review on the dashboard.");
+  return actions.slice(0, 6);
+}

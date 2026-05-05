@@ -822,6 +822,11 @@ h2 {
   background: #f7fbff;
 }
 
+.final-engine-panel {
+  border-color: #b9dfd0;
+  background: #f5fffb;
+}
+
 .checkpoint-progress-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

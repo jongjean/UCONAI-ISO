@@ -4,6 +4,7 @@ import { ok } from "../http/respond.js";
 import {
   buildAcceptanceGateMatrix,
   buildDevelopmentProgressMap,
+  buildFinalEngineCompletionSnapshot,
   buildOperationalRunbookPreview,
   buildReleaseEvidenceChecklist
 } from "../services/acceptancePolicy.js";
@@ -34,6 +35,10 @@ policyRouter.post("/release-evidence-checklist", (req, res) => {
 
 policyRouter.post("/operational-runbook-preview", (req, res) => {
   ok(res, buildOperationalRunbookPreview(req.body || {}));
+});
+
+policyRouter.post("/final-engine-completion-snapshot", (req, res) => {
+  ok(res, buildFinalEngineCompletionSnapshot(req.body || {}));
 });
 
 policyRouter.post("/development-progress-map", (req, res) => {

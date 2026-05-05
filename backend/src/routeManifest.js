@@ -6,6 +6,7 @@
   { method: "POST", path: "/api/v1/policy/acceptance-gate-matrix", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/policy/release-evidence-checklist", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/policy/operational-runbook-preview", status: "active", gate: "none" },
+  { method: "POST", path: "/api/v1/policy/final-engine-completion-snapshot", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/policy/development-progress-map", status: "active", gate: "none" },
   { method: "GET", path: "/api/v1/policy/rule-registry-summary", status: "active", gate: "none" },
   { method: "POST", path: "/api/v1/policy/rule-registry/validate", status: "active", gate: "none" },

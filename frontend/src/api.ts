@@ -144,6 +144,28 @@ export type SecondCheckpointSnapshotResponse = {
   persistence: string;
 };
 
+export type FinalEngineCompletionSnapshotResponse = {
+  checkpoint: string;
+  releaseCandidate: string;
+  overallReady: boolean;
+  phaseProgress: {
+    phase8HpRuntime: number;
+    phase9OpsAcceptance: number;
+    phase10AiEngineFinal: number;
+  };
+  runtime: Record<string, unknown>;
+  publicService: Record<string, unknown>;
+  ai: Record<string, unknown>;
+  progressMap: { totalProgress: number; phases: Array<{ phase: number; progress: number; ready: number; watch: number; blocked: number }> };
+  gateMatrix: { ready: boolean; blockedGates: string[]; rows: Array<{ id: string; label: string; status: string; progress: number; missingEvidence: string[] }> };
+  releaseChecklist: { canClaimProductionReady: boolean; requiredEvidencePackages: Array<{ id: string; artifacts: string[] }>; currentBoundary: string };
+  runbook: { controls: Array<{ area: string; check: string; status: string }>; publicOperationsAllowed: boolean };
+  blockers: Array<{ phase: number; area: string; code: string; message: string }>;
+  nextActions: string[];
+  finalBoundary: string;
+  persistence: string;
+};
+
 function timeoutSignal(milliseconds: number) {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), milliseconds);
@@ -277,6 +299,22 @@ export async function buildSecondCheckpointSnapshot(request: {
     body: JSON.stringify(request)
   }, 12000);
   return payload.data as SecondCheckpointSnapshotResponse;
+}
+
+export async function buildFinalEngineCompletionSnapshot(request: {
+  evidence: string[];
+  runtime: object;
+  ai: object;
+  publicService: object;
+  releaseCandidate?: string;
+}): Promise<FinalEngineCompletionSnapshotResponse> {
+  const baseUrl = (import.meta.env.VITE_ISO_API_BASE_URL || "/iso/api/v1").replace(/\/$/, "");
+  const payload = await fetchJson(`${baseUrl}/policy/final-engine-completion-snapshot`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request)
+  }, 12000);
+  return payload.data as FinalEngineCompletionSnapshotResponse;
 }
 
 export async function probeIsoApi(): Promise<ApiProbeState> {

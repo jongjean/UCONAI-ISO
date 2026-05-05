@@ -72,6 +72,8 @@ for (const token of [
   "buildAcceptanceGateMatrix",
   "buildReleaseEvidenceChecklist",
   "buildOperationalRunbookPreview",
+  "buildFinalEngineCompletionSnapshot",
+  "final-engine-completion-preview-only",
   "buildDevelopmentProgressMap",
   "source-contract",
   "final-acceptance",
@@ -85,6 +87,7 @@ for (const token of [
   'post("/acceptance-gate-matrix"',
   'post("/release-evidence-checklist"',
   'post("/operational-runbook-preview"',
+  'post("/final-engine-completion-snapshot"',
   'post("/development-progress-map"'
 ]) {
   if (!policyRoute.includes(token)) fail(`Missing policy route token: ${token}`);
@@ -95,6 +98,7 @@ for (const route of [
   "/api/v1/policy/acceptance-gate-matrix",
   "/api/v1/policy/release-evidence-checklist",
   "/api/v1/policy/operational-runbook-preview",
+  "/api/v1/policy/final-engine-completion-snapshot",
   "/api/v1/policy/development-progress-map"
 ]) {
   if (!manifest.includes(route)) fail(`Missing phase-9 route manifest entry: ${route}`);
@@ -113,6 +117,8 @@ for (const token of [
 
 for (const token of [
   "Acceptance Gates",
+  "Final AI engine completion",
+  "final-engine-panel",
   "acceptance-grid",
   "acceptanceGateSignals.map"
 ]) {

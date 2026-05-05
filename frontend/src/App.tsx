@@ -20,6 +20,7 @@
 import {
   analyzeNDocument,
   buildEvidenceGrounding,
+  buildFinalEngineCompletionSnapshot,
   buildProjectMemorySnapshot,
   buildProjectControlSnapshot,
   buildSecondCheckpointSnapshot,
@@ -28,6 +29,7 @@ import {
   queryNDocumentKnowledge,
   runAiCommander,
   type ApiProbeState,
+  type FinalEngineCompletionSnapshotResponse,
   type SecondCheckpointSnapshotResponse
 } from "./api";
 import { useEffect, useRef, useState } from "react";
@@ -256,6 +258,7 @@ type WorkspaceSaveState = {
   aiDecisionLedger?: AiDecisionEntry[];
   projectMemorySnapshot?: ProjectMemorySnapshot;
   secondCheckpointSnapshot?: SecondCheckpointSnapshotResponse;
+  finalEngineSnapshot?: FinalEngineCompletionSnapshotResponse;
   isWizardPageOpen?: boolean;
 };
 
@@ -556,6 +559,28 @@ const defaultSecondCheckpointSnapshot: SecondCheckpointSnapshotResponse = {
   persistence: "preview"
 };
 
+const defaultFinalEngineSnapshot: FinalEngineCompletionSnapshotResponse = {
+  checkpoint: "final-ai-engine-completion-phase-10",
+  releaseCandidate: "uconai-iso-ai-engine-v0.10",
+  overallReady: false,
+  phaseProgress: {
+    phase8HpRuntime: 0,
+    phase9OpsAcceptance: 0,
+    phase10AiEngineFinal: 0
+  },
+  runtime: {},
+  publicService: {},
+  ai: {},
+  progressMap: { totalProgress: 0, phases: [] },
+  gateMatrix: { ready: false, blockedGates: [], rows: [] },
+  releaseChecklist: { canClaimProductionReady: false, requiredEvidencePackages: [], currentBoundary: "Waiting for final engine evidence." },
+  runbook: { controls: [], publicOperationsAllowed: false },
+  blockers: [],
+  nextActions: ["Verify public service, AI grounding and HP runtime state."],
+  finalBoundary: "Waiting for final engine evidence.",
+  persistence: "preview"
+};
+
 const nDocumentEventLabels: Record<NDocumentEventType, string> = {
   presentation: "Presentation",
   decision: "Decision",
@@ -659,6 +684,7 @@ export function App() {
   const [aiDecisionLedger, setAiDecisionLedger] = useState<AiDecisionEntry[]>(savedWorkspace.aiDecisionLedger || []);
   const [projectMemorySnapshot, setProjectMemorySnapshot] = useState<ProjectMemorySnapshot>(savedWorkspace.projectMemorySnapshot || defaultProjectMemorySnapshot);
   const [secondCheckpointSnapshot, setSecondCheckpointSnapshot] = useState<SecondCheckpointSnapshotResponse>(savedWorkspace.secondCheckpointSnapshot || defaultSecondCheckpointSnapshot);
+  const [finalEngineSnapshot, setFinalEngineSnapshot] = useState<FinalEngineCompletionSnapshotResponse>(savedWorkspace.finalEngineSnapshot || defaultFinalEngineSnapshot);
   const [isWizardPageOpen, setIsWizardPageOpen] = useState(savedWorkspace.isWizardPageOpen || false);
   const [activeModuleKey, setActiveModuleKey] = useState<keyof OperationalModules>("roadmapEvents");
   const [moduleJson, setModuleJson] = useState(JSON.stringify((savedWorkspace.operationalModules || defaultOperationalModules).roadmapEvents, null, 2));
@@ -812,6 +838,7 @@ export function App() {
       aiDecisionLedger,
       projectMemorySnapshot,
       secondCheckpointSnapshot,
+      finalEngineSnapshot,
       isWizardPageOpen
     };
     if (typeof window !== "undefined") {
@@ -841,6 +868,7 @@ export function App() {
     aiDecisionLedger,
     projectMemorySnapshot,
     secondCheckpointSnapshot,
+    finalEngineSnapshot,
     isWizardPageOpen,
     selectedChapterId,
     selectedClauseId
@@ -916,6 +944,46 @@ export function App() {
       active = false;
     };
   }, [aiDecisionLedger, editableProjectDraft, evidenceGrounding, fieldChangeLog, nDocuments, projectControlSnapshot, projectMemorySnapshot, standardSetup]);
+
+  useEffect(() => {
+    let active = true;
+    buildFinalEngineCompletionSnapshot({
+      releaseCandidate: "uconai-iso-ai-engine-v0.10",
+      evidence: [
+        "npm-check",
+        "phase-checks",
+        "source-noise-check",
+        "known-limitations",
+        "acceptance-matrix",
+        secondCheckpointSnapshot.phase7.exportGate.gateOpen ? "formal-export-gate" : ""
+      ].filter(Boolean),
+      runtime: {
+        mode: "public-preview",
+        isoApiActive: apiProbe.status === "connected",
+        publicIsoOk: apiProbe.status === "connected",
+        hpOllamaActive: false
+      },
+      publicService: {
+        frontendOk: apiProbe.status === "connected",
+        healthOk: apiProbe.health === "ok",
+        routesOk: apiProbe.routes > 0,
+        checkpointOk: secondCheckpointSnapshot.checkpoint === "second-checkpoint-phase-7"
+      },
+      ai: {
+        provider: "ollama",
+        model: standardSetup.aiModelName || "qwen3:14b",
+        grounded: evidenceGrounding.grounded,
+        hpOllamaActive: false
+      }
+    }).then((snapshot) => {
+      if (active) setFinalEngineSnapshot(snapshot);
+    }).catch(() => {
+      if (active) setFinalEngineSnapshot(defaultFinalEngineSnapshot);
+    });
+    return () => {
+      active = false;
+    };
+  }, [apiProbe, evidenceGrounding.grounded, secondCheckpointSnapshot, standardSetup.aiModelName]);
 
   const selectedChapter = chapterBlocks.find((block) => block.id === selectedChapterId) || chapterBlocks[0] || chapterWorkspaceBlocks[0];
 
@@ -1579,6 +1647,7 @@ export function App() {
       aiDecisionLedger,
       projectMemorySnapshot,
       secondCheckpointSnapshot,
+      finalEngineSnapshot,
       isWizardPageOpen
     };
     setWorkspaceJson(JSON.stringify(payload, null, 2));
@@ -1614,6 +1683,7 @@ export function App() {
       if (parsed.aiDecisionLedger) setAiDecisionLedger(parsed.aiDecisionLedger);
       if (parsed.projectMemorySnapshot) setProjectMemorySnapshot(parsed.projectMemorySnapshot);
       if (parsed.secondCheckpointSnapshot) setSecondCheckpointSnapshot(parsed.secondCheckpointSnapshot);
+      if (parsed.finalEngineSnapshot) setFinalEngineSnapshot(parsed.finalEngineSnapshot);
       if (typeof parsed.isWizardPageOpen === "boolean") setIsWizardPageOpen(parsed.isWizardPageOpen);
       setWorkspaceMessage("Workspace JSON imported.");
     } catch {
@@ -1647,6 +1717,7 @@ export function App() {
     setAiDecisionLedger([]);
     setProjectMemorySnapshot(defaultProjectMemorySnapshot);
     setSecondCheckpointSnapshot(defaultSecondCheckpointSnapshot);
+    setFinalEngineSnapshot(defaultFinalEngineSnapshot);
     setIsWizardPageOpen(false);
     setActiveModuleKey("roadmapEvents");
     setModuleJson(JSON.stringify(defaultOperationalModules.roadmapEvents, null, 2));
@@ -2078,6 +2149,59 @@ export function App() {
                 <strong>{secondCheckpointSnapshot.blockers.length} blocker(s)</strong>
                 <ul>
                   {secondCheckpointSnapshot.nextActions.slice(0, 5).map((action) => <li key={action}>{action}</li>)}
+                </ul>
+              </article>
+            </div>
+          </div>
+          <div className="project-control-snapshot-panel final-engine-panel">
+            <div className="regulation-analysis-head">
+              <div>
+                <span>Final AI engine completion</span>
+                <strong>{finalEngineSnapshot.overallReady ? "Engine package ready" : "Engine package with visible gates"}</strong>
+                <p>HP runtime, public service, 4090 AI, operations and final acceptance are summarized for the phase-10 engine review.</p>
+              </div>
+            </div>
+            <div className="checkpoint-progress-grid">
+              <article>
+                <span>8 HP runtime</span>
+                <strong>{finalEngineSnapshot.phaseProgress.phase8HpRuntime}%</strong>
+                <p>Public preview and HP runtime evidence.</p>
+              </article>
+              <article>
+                <span>9 Ops acceptance</span>
+                <strong>{finalEngineSnapshot.phaseProgress.phase9OpsAcceptance}%</strong>
+                <p>{finalEngineSnapshot.gateMatrix.blockedGates.length} gate(s) still need full evidence.</p>
+              </article>
+              <article>
+                <span>10 AI engine final</span>
+                <strong>{finalEngineSnapshot.phaseProgress.phase10AiEngineFinal}%</strong>
+                <p>{finalEngineSnapshot.finalBoundary}</p>
+              </article>
+            </div>
+            <div className="analysis-status-grid">
+              <article>
+                <span>Acceptance gates</span>
+                <strong>{finalEngineSnapshot.gateMatrix.ready ? "ready" : "evidence-gated"}</strong>
+                <ul>
+                  {finalEngineSnapshot.gateMatrix.rows.slice(0, 6).map((row) => (
+                    <li key={row.id}>{row.label}: {row.progress}% {row.status}</li>
+                  ))}
+                </ul>
+              </article>
+              <article>
+                <span>Runbook controls</span>
+                <strong>{finalEngineSnapshot.runbook.controls.length} control(s)</strong>
+                <ul>
+                  {finalEngineSnapshot.runbook.controls.slice(0, 6).map((control) => (
+                    <li key={control.area}>{control.area}: {control.status}</li>
+                  ))}
+                </ul>
+              </article>
+              <article>
+                <span>Final actions</span>
+                <strong>{finalEngineSnapshot.blockers.length} blocker(s)</strong>
+                <ul>
+                  {finalEngineSnapshot.nextActions.slice(0, 5).map((action) => <li key={action}>{action}</li>)}
                 </ul>
               </article>
             </div>
