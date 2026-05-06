@@ -586,6 +586,30 @@ h2 {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  align-items: start;
+  flex-wrap: wrap;
+}
+
+.ai-model-selector {
+  display: grid;
+  gap: 4px;
+  min-width: 150px;
+}
+
+.ai-model-selector span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ai-model-selector select {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  padding: 6px 8px;
+  font: inherit;
 }
 
 .super-agent-message-list {
@@ -1309,6 +1333,18 @@ h2 {
   color: var(--ink);
   padding: 9px 10px;
   font: inherit;
+}
+
+.wizard-field-grid input[readonly] {
+  background: #eef4f8;
+  color: var(--navy);
+  font-weight: 800;
+}
+
+.compound-field {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.45fr) minmax(0, 1fr);
+  gap: 8px;
 }
 
 .wizard-field-grid textarea,
@@ -3801,6 +3837,7 @@ h2 {
   .wizard-layout,
   .wizard-field-grid,
   .wizard-field-grid.three,
+  .compound-field,
   .memory-grid,
   .checkpoint-progress-grid,
   .setup-review-grid,

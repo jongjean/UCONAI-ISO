@@ -66,7 +66,7 @@ function compactContext(context = {}) {
   };
 }
 
-export async function runAiCommander({ prompt = "", messages = [], context = {} } = {}) {
+export async function runAiCommander({ prompt = "", model = "", messages = [], context = {} } = {}) {
   const trimmedPrompt = String(prompt || "").trim();
   if (!trimmedPrompt) {
     throw new ApiError(400, "INVALID_AI_PROMPT", "AI Commander prompt is required.");
@@ -99,11 +99,13 @@ export async function runAiCommander({ prompt = "", messages = [], context = {} 
     }))
     : [];
 
-  const response = await fetch(`${config.ai.ollamaBaseUrl.replace(/\/$/, "")}/api/chat`, {
+    const requestedModel = String(model || "").trim();
+    const selectedModel = requestedModel || config.ai.ollamaModel;
+    const response = await fetch(`${config.ai.ollamaBaseUrl.replace(/\/$/, "")}/api/chat`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      model: config.ai.ollamaModel,
+        model: selectedModel,
       stream: false,
       messages: [
         { role: "system", content: systemPrompt },
@@ -139,7 +141,7 @@ export async function runAiCommander({ prompt = "", messages = [], context = {} 
 
   return {
     provider: "ollama",
-    model: config.ai.ollamaModel,
+      model: selectedModel,
     text: text.trim(),
     grounding: buildEvidenceGrounding({
       query: trimmedPrompt,

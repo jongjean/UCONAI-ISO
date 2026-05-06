@@ -83,11 +83,14 @@ type ClauseDraft = {
 type WizardStepId = "fit" | "classification" | "committee" | "scope" | "review";
 
 type StandardSetup = {
+  projectNumber: string;
   projectTitle: string;
   standardTitle: string;
   aiModelName: string;
   developerNames: string;
   developmentLead: string;
+  developmentLeadTitle: string;
+  developmentLeadTitleOther: string;
   developmentCommittee: string;
   problemStatement: string;
   standardizationNeed: string;
@@ -96,8 +99,17 @@ type StandardSetup = {
   keywords: string;
   standardClass: string;
   organization: string;
+  organizationOther: string;
   jointStructure: string;
   committeeType: string;
+  committeeTypeOther: string;
+  committeeNumber: string;
+  scType: string;
+  scTypeOther: string;
+  scNumber: string;
+  wgType: string;
+  wgTypeOther: string;
+  wgNumber: string;
   tc: string;
   sc: string;
   wg: string;
@@ -113,6 +125,7 @@ type StandardSetup = {
   evidenceMemo: string;
   realTimeStatusMemo: string;
   advancedInfoMemo: string;
+  todoMemo: string;
 };
 
 type FieldMeta = {
@@ -328,12 +341,61 @@ const defaultOperationalModules: OperationalModules = {
   acceptanceGateSignals: defaultAcceptanceGateSignals
 };
 
+const aiModelOptions = ["qwen3:14b", "qwen3:32b", "qwen3:8b", "deepseek-r1:32b", "qwen2.5vl:7b"];
+const organizationOptions = ["ISO", "ISO/IEC", "IEEE", "Other"];
+const committeeTypeOptions = ["TC", "JTC", "PC", "SyC", "Other"];
+const scTypeOptions = ["SC", "Other"];
+const wgTypeOptions = ["WG", "JWG", "AG", "Other"];
+const titleOptions = ["", "Dr.", "Prof.", "Sir.", "Mr.", "Ms.", "Mis.", "Miss", "Other"];
+
+function generateProjectNumber() {
+  const now = new Date();
+  const year = String(now.getFullYear());
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const dateKey = `${year}${month}${day}`;
+  let counter = 1;
+  try {
+    const storageKey = `uconai.iso.projectCounter.${dateKey}`;
+    counter = Number(window.localStorage.getItem(storageKey) || "0") + 1;
+    window.localStorage.setItem(storageKey, String(counter));
+  } catch {
+    counter = 1;
+  }
+  return `UST${year}${month}${day}${String(counter).padStart(4, "0")}`;
+}
+
+function optionValue(value: string, other: string) {
+  return value === "Other" ? other.trim() : value;
+}
+
+function committeeSegment(type: string, otherType: string, number: string) {
+  const prefix = optionValue(type, otherType);
+  return [prefix, number.trim()].filter(Boolean).join(" ");
+}
+
+function buildCommitteePath(setup: StandardSetup) {
+  return [
+    optionValue(setup.organization, setup.organizationOther),
+    committeeSegment(setup.committeeType, setup.committeeTypeOther, setup.committeeNumber) || setup.tc,
+    committeeSegment(setup.scType, setup.scTypeOther, setup.scNumber) || setup.sc,
+    committeeSegment(setup.wgType, setup.wgTypeOther, setup.wgNumber) || setup.wg
+  ].filter(Boolean).join(" ");
+}
+
+function leadTitle(setup: StandardSetup) {
+  return optionValue(setup.developmentLeadTitle, setup.developmentLeadTitleOther);
+}
+
 const defaultStandardSetup: StandardSetup = {
+  projectNumber: "",
   projectTitle: "",
   standardTitle: "",
-  aiModelName: "Preview policy engine",
+  aiModelName: "qwen3:14b",
   developerNames: "",
   developmentLead: "",
+  developmentLeadTitle: "",
+  developmentLeadTitleOther: "",
   developmentCommittee: "",
   problemStatement: "",
   standardizationNeed: "",
@@ -342,8 +404,17 @@ const defaultStandardSetup: StandardSetup = {
   keywords: "",
   standardClass: "undecided",
   organization: "undecided",
+  organizationOther: "",
   jointStructure: "undecided",
   committeeType: "undecided",
+  committeeTypeOther: "",
+  committeeNumber: "",
+  scType: "SC",
+  scTypeOther: "",
+  scNumber: "",
+  wgType: "WG",
+  wgTypeOther: "",
+  wgNumber: "",
   tc: "",
   sc: "",
   wg: "",
@@ -358,7 +429,8 @@ const defaultStandardSetup: StandardSetup = {
   similarStandardsMemo: "",
   evidenceMemo: "",
   realTimeStatusMemo: "",
-  advancedInfoMemo: ""
+  advancedInfoMemo: "",
+  todoMemo: ""
 };
 
 const wizardSteps: Array<{ id: WizardStepId; label: string; title: string; detail: string }> = [
@@ -665,7 +737,8 @@ export function App() {
   });
   const [standardSetup, setStandardSetup] = useState<StandardSetup>({
     ...defaultStandardSetup,
-    ...savedWorkspace.standardSetup
+    ...savedWorkspace.standardSetup,
+    projectNumber: savedWorkspace.standardSetup?.projectNumber || generateProjectNumber()
   });
   const [fieldMeta, setFieldMeta] = useState<Record<string, FieldMeta>>(savedWorkspace.fieldMeta || {});
   const [activeWizardStep, setActiveWizardStep] = useState<WizardStepId>(savedWorkspace.activeWizardStep || "fit");
@@ -1215,7 +1288,7 @@ export function App() {
 
     return sections.map((section) => {
       if (section.id === "title") {
-        return { ...section, title: titleText, memo: `Committee path: ${[setup.tc, setup.sc, setup.wg].filter(Boolean).join(" ") || "Not assigned"}\nAI model: ${setup.aiModelName || "Not assigned"}`, progress: Math.max(section.progress, titleText === "Untitled ISO project" ? 10 : 35) };
+        return { ...section, title: titleText, memo: `Project no.: ${setup.projectNumber || "Not assigned"}\nCommittee path: ${buildCommitteePath(setup) || "Not assigned"}`, progress: Math.max(section.progress, titleText === "Untitled ISO project" ? 10 : 35) };
       }
       if (section.id === "scope") {
         return { ...section, memo: scopeMemo || section.memo, progress: Math.max(section.progress, setup.scopeDraft ? 42 : 15) };
@@ -1227,7 +1300,7 @@ export function App() {
         const memberMemo = [
           termMemo,
           setup.developerNames && `Developers: ${setup.developerNames}`,
-          setup.developmentLead && `Development lead: ${setup.developmentLead}`,
+          setup.developmentLead && `Development lead: ${[leadTitle(setup), setup.developmentLead].filter(Boolean).join(" ")}`,
           setup.developmentCommittee && `Committee members: ${setup.developmentCommittee}`
         ].filter(Boolean).join("\n");
         return { ...section, memo: memberMemo || section.memo, progress: Math.max(section.progress, setup.keywords || setup.developerNames ? 28 : 10) };
@@ -1337,6 +1410,7 @@ export function App() {
       }
       const result = await runAiCommander({
         prompt,
+        model: standardSetup.aiModelName,
         messages: messagesForApi,
         context: {
           currentStage,
@@ -1667,7 +1741,7 @@ export function App() {
       if (parsed.brainDecisionLog?.length) setBrainDecisionLog(parsed.brainDecisionLog);
       if (parsed.activeViewMode) setActiveViewMode(parsed.activeViewMode);
       if (parsed.operationalModules) setOperationalModules({ ...defaultOperationalModules, ...parsed.operationalModules });
-      if (parsed.standardSetup) setStandardSetup({ ...defaultStandardSetup, ...parsed.standardSetup });
+      if (parsed.standardSetup) setStandardSetup({ ...defaultStandardSetup, ...parsed.standardSetup, projectNumber: parsed.standardSetup.projectNumber || generateProjectNumber() });
       if (parsed.fieldMeta) setFieldMeta(parsed.fieldMeta);
       if (parsed.activeWizardStep) setActiveWizardStep(parsed.activeWizardStep);
       if (parsed.regulationAnalysis) setRegulationAnalysis(parsed.regulationAnalysis);
@@ -1702,7 +1776,7 @@ export function App() {
     setBrainDecisionLog(brainDecisionLogSignals);
     setActiveViewMode("one");
     setOperationalModules(defaultOperationalModules);
-    setStandardSetup(defaultStandardSetup);
+    setStandardSetup({ ...defaultStandardSetup, projectNumber: generateProjectNumber() });
     setFieldMeta({});
     setActiveWizardStep("fit");
     setRegulationAnalysis(defaultRegulationAnalysis);
@@ -1869,6 +1943,7 @@ export function App() {
   const currentStage = standardSetup.currentStage === "Pre-project"
     ? "PWI"
     : standardSetup.currentStage || editableProjectDraft.stage || "PWI";
+  const effectiveCommitteeName = buildCommitteePath(standardSetup) || standardSetup.committeeName || "Not assigned";
   const stageIndex = Math.max(0, developmentStages.findIndex((stage) => stage === currentStage));
   const stageProgress = Math.round(((stageIndex + 1) / developmentStages.length) * 100);
   const nDocumentStageCounts = developmentStages.reduce<Record<string, number>>((counts, stage) => {
@@ -1885,8 +1960,16 @@ export function App() {
   const renderSuperAgentChat = (className = "") => (
     <div className={`super-agent-chat ${className}`.trim()}>
       <div className="super-agent-chat-head">
-        <strong>AI Commander</strong>
-        <span>Preview decision room</span>
+        <div>
+          <strong>AI Commander</strong>
+          <span>Preview decision room</span>
+        </div>
+        <label className="ai-model-selector">
+          <span>Model</span>
+          <select value={standardSetup.aiModelName} onChange={(event) => updateStandardSetup("aiModelName", event.target.value, "suggested")}>
+            {aiModelOptions.map((model) => <option value={model} key={model}>{model}</option>)}
+          </select>
+        </label>
       </div>
       <div className="super-agent-message-list" ref={superAgentListRef}>
         {superAgentMessages.map((message) => (
@@ -2264,12 +2347,51 @@ export function App() {
             </div>
             <div className="wizard-field-grid two">
               <label>
-                <span>AI model name</span>
-                <input value={standardSetup.aiModelName} onChange={(event) => updateStandardSetup("aiModelName", event.target.value, "suggested")} />
+                <span>Project number</span>
+                <input value={standardSetup.projectNumber} readOnly />
+              </label>
+              <label>
+                <span>Standards organization</span>
+                <select value={standardSetup.organization} onChange={(event) => updateStandardSetup("organization", event.target.value, "suggested")}>
+                  <option value="undecided">Select organization</option>
+                  {organizationOptions.map((option) => <option value={option} key={option}>{option}</option>)}
+                </select>
+                {standardSetup.organization === "Other" && <input value={standardSetup.organizationOther} onChange={(event) => updateStandardSetup("organizationOther", event.target.value, "suggested")} placeholder="Enter standards organization" />}
+              </label>
+              <label>
+                <span>TC/JTC path</span>
+                <div className="compound-field">
+                  <select value={standardSetup.committeeType} onChange={(event) => updateStandardSetup("committeeType", event.target.value, "suggested")}>
+                    <option value="undecided">Select</option>
+                    {committeeTypeOptions.map((option) => <option value={option} key={option}>{option}</option>)}
+                  </select>
+                  <input value={standardSetup.committeeNumber} onChange={(event) => updateStandardSetup("committeeNumber", event.target.value, "suggested")} placeholder="No." />
+                </div>
+                {standardSetup.committeeType === "Other" && <input value={standardSetup.committeeTypeOther} onChange={(event) => updateStandardSetup("committeeTypeOther", event.target.value, "suggested")} placeholder="Enter committee type" />}
+              </label>
+              <label>
+                <span>SC path</span>
+                <div className="compound-field">
+                  <select value={standardSetup.scType} onChange={(event) => updateStandardSetup("scType", event.target.value, "suggested")}>
+                    {scTypeOptions.map((option) => <option value={option} key={option}>{option}</option>)}
+                  </select>
+                  <input value={standardSetup.scNumber} onChange={(event) => updateStandardSetup("scNumber", event.target.value, "suggested")} placeholder="No." />
+                </div>
+                {standardSetup.scType === "Other" && <input value={standardSetup.scTypeOther} onChange={(event) => updateStandardSetup("scTypeOther", event.target.value, "suggested")} placeholder="Enter SC type" />}
+              </label>
+              <label>
+                <span>WG/JWG path</span>
+                <div className="compound-field">
+                  <select value={standardSetup.wgType} onChange={(event) => updateStandardSetup("wgType", event.target.value, "suggested")}>
+                    {wgTypeOptions.map((option) => <option value={option} key={option}>{option}</option>)}
+                  </select>
+                  <input value={standardSetup.wgNumber} onChange={(event) => updateStandardSetup("wgNumber", event.target.value, "suggested")} placeholder="No." />
+                </div>
+                {standardSetup.wgType === "Other" && <input value={standardSetup.wgTypeOther} onChange={(event) => updateStandardSetup("wgTypeOther", event.target.value, "suggested")} placeholder="Enter WG type" />}
               </label>
               <label>
                 <span>Committee name</span>
-                <input value={standardSetup.committeeName} onChange={(event) => updateStandardSetup("committeeName", event.target.value, "suggested")} />
+                <input value={effectiveCommitteeName} readOnly />
               </label>
               <label>
                 <span>Developer names</span>
@@ -2277,14 +2399,20 @@ export function App() {
               </label>
               <label>
                 <span>Development lead</span>
-                <textarea value={standardSetup.developmentLead} onChange={(event) => updateStandardSetup("developmentLead", event.target.value, "suggested")} />
+                <div className="compound-field">
+                  <select value={standardSetup.developmentLeadTitle} onChange={(event) => updateStandardSetup("developmentLeadTitle", event.target.value, "suggested")}>
+                    {titleOptions.map((option) => <option value={option} key={option || "none"}>{option || "No title"}</option>)}
+                  </select>
+                  <input value={standardSetup.developmentLead} onChange={(event) => updateStandardSetup("developmentLead", event.target.value, "suggested")} placeholder="Lead name" />
+                </div>
+                {standardSetup.developmentLeadTitle === "Other" && <input value={standardSetup.developmentLeadTitleOther} onChange={(event) => updateStandardSetup("developmentLeadTitleOther", event.target.value, "suggested")} placeholder="Enter title" />}
               </label>
               <label>
-                <span>Development committee</span>
-                <textarea value={standardSetup.developmentCommittee} onChange={(event) => updateStandardSetup("developmentCommittee", event.target.value, "suggested")} />
+                <span>Development committee members</span>
+                <textarea value={standardSetup.developmentCommittee} onChange={(event) => updateStandardSetup("developmentCommittee", event.target.value, "suggested")} placeholder="Auto-filled from registered members by project number; editable here." />
               </label>
               <label>
-                <span>Advanced information memo</span>
+                <span>Procedure memo</span>
                 <textarea value={standardSetup.advancedInfoMemo} onChange={(event) => updateStandardSetup("advancedInfoMemo", event.target.value, "suggested")} />
               </label>
               <label>
@@ -2292,8 +2420,12 @@ export function App() {
                 <textarea value={standardSetup.realTimeStatusMemo} onChange={(event) => updateStandardSetup("realTimeStatusMemo", event.target.value, "suggested")} />
               </label>
               <label>
-                <span>Evidence memo</span>
+                <span>Meeting resolution memo</span>
                 <textarea value={standardSetup.evidenceMemo} onChange={(event) => updateStandardSetup("evidenceMemo", event.target.value, "suggested")} />
+              </label>
+              <label>
+                <span>To-do memo</span>
+                <textarea value={standardSetup.todoMemo} onChange={(event) => updateStandardSetup("todoMemo", event.target.value, "suggested")} />
               </label>
             </div>
           </div>
@@ -2488,16 +2620,9 @@ export function App() {
                       <span>Organization <em className={fieldStatus("organization")}>!</em></span>
                       <select value={standardSetup.organization} onChange={(event) => updateStandardSetup("organization", event.target.value, event.target.value === "undecided" ? "undecided" : "unverified")}>
                         <option value="undecided">undecided</option>
-                        <option value="ISO">ISO</option>
-                        <option value="IEC">IEC</option>
-                        <option value="ISO/IEC">ISO/IEC</option>
-                        <option value="IEEE">IEEE</option>
-                        <option value="ITU">ITU</option>
-                        <option value="ASTM">ASTM</option>
-                        <option value="KS/KATS">KS/KATS</option>
-                        <option value="association">association</option>
-                        <option value="other">other</option>
+                        {organizationOptions.map((option) => <option value={option} key={option}>{option}</option>)}
                       </select>
+                      {standardSetup.organization === "Other" && <input value={standardSetup.organizationOther} onChange={(event) => updateStandardSetup("organizationOther", event.target.value)} placeholder="Enter organization" />}
                     </label>
                     <label>
                       <span>Joint structure</span>
@@ -2520,17 +2645,14 @@ export function App() {
                       <span>Committee type <em className={fieldStatus("committeeType")}>!</em></span>
                       <select value={standardSetup.committeeType} onChange={(event) => updateStandardSetup("committeeType", event.target.value)}>
                         <option value="undecided">undecided</option>
-                        <option value="TC">TC</option>
-                        <option value="JTC">JTC</option>
-                        <option value="SC">SC</option>
-                        <option value="WG">WG</option>
-                        <option value="AHG">AHG</option>
-                        <option value="other">other</option>
+                        {committeeTypeOptions.map((option) => <option value={option} key={option}>{option}</option>)}
                       </select>
+                      {standardSetup.committeeType === "Other" && <input value={standardSetup.committeeTypeOther} onChange={(event) => updateStandardSetup("committeeTypeOther", event.target.value)} placeholder="Enter committee type" />}
                     </label>
-                    <label><span>TC/JTC</span><input value={standardSetup.tc} onChange={(event) => updateStandardSetup("tc", event.target.value)} /></label>
-                    <label><span>SC</span><input value={standardSetup.sc} onChange={(event) => updateStandardSetup("sc", event.target.value)} /></label>
-                    <label><span>WG</span><input value={standardSetup.wg} onChange={(event) => updateStandardSetup("wg", event.target.value)} /></label>
+                    <label><span>TC/JTC number</span><input value={standardSetup.committeeNumber} onChange={(event) => updateStandardSetup("committeeNumber", event.target.value)} /></label>
+                    <label><span>SC</span><div className="compound-field"><select value={standardSetup.scType} onChange={(event) => updateStandardSetup("scType", event.target.value)}>{scTypeOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select><input value={standardSetup.scNumber} onChange={(event) => updateStandardSetup("scNumber", event.target.value)} placeholder="No." /></div></label>
+                    <label><span>WG/JWG</span><div className="compound-field"><select value={standardSetup.wgType} onChange={(event) => updateStandardSetup("wgType", event.target.value)}>{wgTypeOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select><input value={standardSetup.wgNumber} onChange={(event) => updateStandardSetup("wgNumber", event.target.value)} placeholder="No." /></div></label>
+                    <label><span>Resolved committee name</span><input value={effectiveCommitteeName} readOnly /></label>
                     <label><span>Deliverable</span><select value={standardSetup.deliverableType} onChange={(event) => updateStandardSetup("deliverableType", event.target.value)}>
                       <option value="undecided">undecided</option>
                       <option value="IS">IS</option>

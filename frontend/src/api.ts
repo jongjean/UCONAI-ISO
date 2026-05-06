@@ -18,6 +18,7 @@ const defaultProbeState: ApiProbeState = {
 
 export type AiCommanderRequest = {
   prompt: string;
+  model?: string;
   messages: Array<{ speaker: "user" | "super-agent"; text: string }>;
   context: object;
 };
