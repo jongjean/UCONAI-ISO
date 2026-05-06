@@ -44,7 +44,7 @@ button {
   padding: 24px 18px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 18px;
   overflow-y: auto;
 }
 
@@ -107,6 +107,7 @@ button {
 .nav-list {
   display: grid;
   gap: 8px;
+  flex: 0 0 auto;
 }
 
 .nav-item {
@@ -137,7 +138,9 @@ button {
 }
 
 .sidebar-ai-chat {
-  margin-top: auto;
+  margin-top: 4px;
+  flex: 1 1 auto;
+  min-height: 0;
   border-color: #c7d7e6;
   background: #f8fbff;
   color: var(--ink);
@@ -159,7 +162,9 @@ button {
 }
 
 .sidebar-ai-chat .super-agent-message-list {
-  max-height: min(44vh, 420px);
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
   scrollbar-color: #7890a6 #edf3f8;
 }
 
@@ -568,6 +573,10 @@ h2 {
   display: grid;
   gap: 12px;
   grid-column: 1 / -1;
+}
+
+.sidebar-ai-chat.super-agent-chat {
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .super-agent-chat-head {
@@ -3687,10 +3696,6 @@ h2 {
 
   .sidebar-ai-chat {
     padding: 10px;
-  }
-
-  .sidebar-ai-chat .super-agent-message-list {
-    max-height: 220px;
   }
 
   .brand {

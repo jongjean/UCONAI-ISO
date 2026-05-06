@@ -532,13 +532,7 @@ const defaultRegulationAnalysis: RegulationAnalysis = {
   summary: "Document-based stage analysis is waiting for source evidence."
 };
 
-const defaultSuperAgentMessages: SuperAgentMessage[] = [
-  {
-    id: "super-agent-opening",
-    speaker: "super-agent",
-    text: "I coordinate project creation, meeting evidence, references, schedules, stage decisions and document actions. Korean prompts are supported."
-  }
-];
+const defaultSuperAgentMessages: SuperAgentMessage[] = [];
 
 const defaultProjectControlSnapshot: ProjectControlSnapshot = {
   actionItems: ["Upload source evidence so the AI Commander can build the first action queue."],
@@ -1968,7 +1962,11 @@ export function App() {
         </label>
       </div>
       <div className="super-agent-message-list" ref={superAgentListRef}>
-        {superAgentMessages.filter((message) => message.id !== "super-agent-welcome").map((message) => (
+        {superAgentMessages.filter((message) => (
+          message.id !== "super-agent-welcome"
+          && message.id !== "super-agent-opening"
+          && !message.text.includes("I coordinate project creation")
+        )).map((message) => (
           <article className={`super-agent-message ${message.speaker}`} key={message.id}>
             <span>{message.speaker === "super-agent" ? "Super Agent" : "User"}</span>
             <p>{message.text}</p>
