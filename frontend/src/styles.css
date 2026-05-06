@@ -144,8 +144,9 @@ button {
 }
 
 .sidebar-ai-chat .super-agent-chat-head {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .sidebar-ai-chat .super-agent-chat-head strong,
@@ -153,13 +154,12 @@ button {
   color: var(--navy);
 }
 
-.sidebar-ai-chat .super-agent-chat-head span,
 .sidebar-ai-chat .super-agent-message p {
   color: #31465b;
 }
 
 .sidebar-ai-chat .super-agent-message-list {
-  max-height: min(32vh, 280px);
+  max-height: min(44vh, 420px);
   scrollbar-color: #7890a6 #edf3f8;
 }
 
@@ -173,7 +173,7 @@ button {
 }
 
 .sidebar-ai-chat .super-agent-input-row textarea {
-  min-height: 86px;
+  min-height: 128px;
   border-color: #96aabd;
   color: var(--ink);
   background: white;
@@ -185,18 +185,6 @@ button {
 
 .sidebar-ai-chat .super-agent-input-row button {
   min-height: 36px;
-}
-
-.sidebar-ai-chat .super-agent-quick-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-}
-
-.sidebar-ai-chat .super-agent-quick-actions button {
-  padding: 7px 8px;
-  color: var(--iso-blue);
-  background: white;
-  border-color: #b9ccdf;
 }
 
 .workspace {
@@ -586,24 +574,19 @@ h2 {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: start;
-  flex-wrap: wrap;
+  align-items: center;
+  flex-wrap: nowrap;
 }
 
 .ai-model-selector {
-  display: grid;
-  gap: 4px;
-  min-width: 150px;
-}
-
-.ai-model-selector span {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
+  display: block;
+  min-width: 132px;
+  max-width: 48%;
 }
 
 .ai-model-selector select {
-  min-height: 34px;
+  width: 100%;
+  min-height: 32px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: white;
@@ -642,7 +625,7 @@ h2 {
 }
 
 .super-agent-input-row textarea {
-  min-height: 72px;
+  min-height: 112px;
   resize: vertical;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -3684,8 +3667,7 @@ h2 {
   max-height: 38vh;
 }
 
-.mobile-ai-chat .super-agent-input-row,
-.mobile-ai-chat .super-agent-quick-actions {
+.mobile-ai-chat .super-agent-input-row {
   grid-template-columns: 1fr;
 }
 
@@ -3709,10 +3691,6 @@ h2 {
 
   .sidebar-ai-chat .super-agent-message-list {
     max-height: 220px;
-  }
-
-  .sidebar-ai-chat .super-agent-quick-actions {
-    grid-template-columns: 1fr;
   }
 
   .brand {
@@ -3990,8 +3968,7 @@ h2 {
     max-height: 38vh;
   }
 
-  .mobile-ai-chat .super-agent-input-row,
-  .mobile-ai-chat .super-agent-quick-actions {
+  .mobile-ai-chat .super-agent-input-row {
     grid-template-columns: 1fr;
   }
 

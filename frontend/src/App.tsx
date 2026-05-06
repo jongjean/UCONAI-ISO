@@ -1960,19 +1960,15 @@ export function App() {
   const renderSuperAgentChat = (className = "") => (
     <div className={`super-agent-chat ${className}`.trim()}>
       <div className="super-agent-chat-head">
-        <div>
-          <strong>AI Commander</strong>
-          <span>Preview decision room</span>
-        </div>
+        <strong>AI Commander</strong>
         <label className="ai-model-selector">
-          <span>Model</span>
           <select value={standardSetup.aiModelName} onChange={(event) => updateStandardSetup("aiModelName", event.target.value, "suggested")}>
             {aiModelOptions.map((model) => <option value={model} key={model}>{model}</option>)}
           </select>
         </label>
       </div>
       <div className="super-agent-message-list" ref={superAgentListRef}>
-        {superAgentMessages.map((message) => (
+        {superAgentMessages.filter((message) => message.id !== "super-agent-welcome").map((message) => (
           <article className={`super-agent-message ${message.speaker}`} key={message.id}>
             <span>{message.speaker === "super-agent" ? "Super Agent" : "User"}</span>
             <p>{message.text}</p>
@@ -1992,12 +1988,6 @@ export function App() {
           placeholder="Ask in English or Korean. 예: 다음 회의 안건을 정리해줘."
         />
         <button type="button" onClick={() => sendSuperAgentMessage()}>Send</button>
-      </div>
-      <div className="super-agent-quick-actions">
-        <button type="button" onClick={() => sendSuperAgentMessage("Create project from current setup and identify missing evidence.")}>Create project</button>
-        <button type="button" onClick={() => sendSuperAgentMessage("Review uploaded plenary or meeting evidence and update next actions.")}>Review evidence</button>
-        <button type="button" onClick={() => sendSuperAgentMessage("Check reference readiness and source-use risks.")}>Check references</button>
-        <button type="button" onClick={() => sendSuperAgentMessage("Build the next schedule and decision agenda.")}>Build schedule</button>
       </div>
     </div>
   );
